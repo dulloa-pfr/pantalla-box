@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Patagonia Fit &amp; Rehab · Pantalla de sesión</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#1D1D1B">
 <style>
   :root{
     --negro:#1D1D1B; --magenta:#AC07F2; --lima:#B2D705; --blanco:#FFFFFF;
@@ -197,6 +201,7 @@
   #edPrev .card{max-width:420px}
   .ed-pie{display:flex;align-items:center;gap:9px;padding:13px 18px;
           border-top:1px solid var(--line-soft);background:var(--card-2)}
+  .ed-nota{font-size:11px;color:#F2A007;max-width:560px;line-height:1.45}
   .ed-ayuda{font-size:11px;color:var(--txt-3);line-height:1.5;margin-top:8px}
   .ed-ayuda code{background:#141413;border:1px solid var(--line);border-radius:4px;padding:0 4px;color:var(--lima)}
 
@@ -337,6 +342,7 @@ movilidad de cadera x20
     </div>
     <div class="ed-pie">
       <button class="btn" id="btnCancelar">Cancelar</button>
+      <span class="ed-nota" id="edNota">Kinesiología no se sobrescribe en el CMS: la sesión clínica es inmutable y se corrige con adenda. El cambio sí se proyecta hoy.</span>
       <div class="spacer"></div>
       <button class="btn" id="btnGuardarCMS">💾 Guardar también en el CMS</button>
       <button class="btn primary" id="btnAplicar">Proyectar</button>
@@ -430,9 +436,14 @@ function limpiaBloques(bs){
    ============================================================ */
 const NUM = String.raw`\d+\s*-\s*\d+|\d+`;
 const UNI = String.raw`(?:seg|segs|min|s|'|''|"|′|″)`;
-// OJO: el \s+ antes del nombre es obligatorio. Con \s* el motor se come la primera
-// letra de los ejercicios que empiezan con "s" ("sentadilla" -> "entadilla").
-const RE_PRE  = new RegExp(String.raw`^\s*(${NUM})\s*(${UNI})?\s*(?:reps?\.?)?\s+(?![x×]\s*\d)(.*)$`, 'i');
+// Tres guardias, cada una por un caso real que se rompía sin ella:
+//  (?!\d)                -> no partir "20:10" en "2" + "0:10" (notación tabata)
+//  (UNI)(?![letra])      -> la "s" de "sentadilla" no es "segundos" ("entadilla")
+//  (?!\s*[x×]\s*\d)(?![:.,]) -> no tomar como reps el número de "20 x10 cat dog"
+//                           ni el de "1: bloque 1"
+// No se puede exigir un espacio antes del nombre: existe el dialecto pegado,
+// "2monster walk" y "6-8Squat barra", que hay que seguir entendiendo.
+const RE_PRE  = new RegExp(String.raw`^\s*(${NUM})(?!\d)\s*(?:(${UNI})(?![a-záéíóúüñ]))?\s*(?:reps?\.?)?\s*(?!\s*[x×]\s*\d)(?![:.,])(.*)$`, 'i');
 const RE_POST = new RegExp(String.raw`^(.*?)\s*[x×]\s*(${NUM})\s*(${UNI})?\s*(\(.*\))?\s*$`, 'i');
 const RE_DUR  = new RegExp(String.raw`^(.*?)\s+(${NUM})\s*(${UNI})\s*$`, 'i');
 const RE_VIN  = /^\s*[•·\-–—*]\s+/;
@@ -813,7 +824,12 @@ function abrirEditor(u){
   $('#edTipo').value = f.cli.tipo;
   $('#edEtiq').value = f.ses.etiqueta || '';
   $('#edTxt').value = edTxt0 = sesionATexto(f.ses);
-  $('#btnGuardarCMS').style.display = (CONFIG.endpointGuardar && f.origen === 'cms') ? '' : 'none';
+  // Kinesiología no se puede sobrescribir en el CMS: una sesión clínica cerrada
+  // es inmutable por diseño y el plan está versionado a propósito. El endpoint
+  // responde 409, así que el botón ni siquiera se ofrece.
+  const puedeCMS = CONFIG.endpointGuardar && f.origen === 'cms' && f.cli.tipo !== 'kinesiologia';
+  $('#btnGuardarCMS').style.display = puedeCMS ? '' : 'none';
+  $('#edNota').style.display = (CONFIG.endpointGuardar && f.origen === 'cms' && !puedeCMS) ? '' : 'none';
   previa(); $('#editor').classList.add('on'); setTimeout(()=>$('#edTxt').focus(), 40);
 }
 function abrirNueva(){
@@ -822,7 +838,7 @@ function abrirNueva(){
   $('#edNombre').value = ''; $('#edNombre').readOnly = false;
   $('#edTipo').value = 'entrenamiento'; $('#edEtiq').value = 'Clase de prueba';
   $('#edTxt').value = ''; edTxt0 = null;
-  $('#btnGuardarCMS').style.display = 'none';
+  $('#btnGuardarCMS').style.display = 'none'; $('#edNota').style.display = 'none';
   previa(); cerrarBuscador(); $('#editor').classList.add('on');
   setTimeout(()=>$('#edNombre').focus(), 40);
 }
@@ -976,6 +992,12 @@ if (!ES_TV){
     refT = setInterval(() => sincronizar(true), CONFIG.refrescoSegundos * 1000);
 }
 
+</script>
+<script>
+/* PWA: sin este registro la pantalla no se puede instalar como aplicación
+   ni funciona sin internet, por muy alto que esté el número de caché. */
+if ('serviceWorker' in navigator && location.protocol.startsWith('http'))
+  addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
 </script>
 </body>
 </html>
