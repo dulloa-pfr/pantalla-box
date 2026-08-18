@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Patagonia Fit &amp; Rehab · Pantalla de sesión</title>
+<link rel="icon" href="icon-192.png">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#1D1D1B">
 <meta name="mobile-web-app-capable" content="yes">
@@ -162,6 +163,21 @@
   .dotf{width:7px;height:7px;border-radius:50%;background:var(--lima);flex:0 0 auto}
   .dotf.off{background:#8A5A12}
 
+
+  .row .ses{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;flex:0 0 auto}
+  .row .go{font-size:11.5px;font-weight:900;color:#12120F;background:var(--lima);
+           border:0;padding:6px 11px;border-radius:6px;cursor:pointer;white-space:nowrap}
+  .row .go:hover{filter:brightness(1.12)}
+  .row.ent .go{background:var(--ent);color:#fff}
+  .row .go.hecha{background:#33332F;color:var(--txt-3)}
+  .row .go.hecha::after{content:" ✓"}
+  .zswitch{display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+           padding:12px 32px;border-bottom:1px solid var(--line-soft);background:#1E1E1C}
+  .zswitch span{font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--txt-3)}
+  .zswitch button{font-size:14px;font-weight:800;color:var(--txt);background:var(--card-2);
+                  border:1px solid var(--line);padding:8px 14px;border-radius:8px;cursor:pointer}
+  .zswitch button:hover{border-color:var(--acc);color:var(--acc-txt)}
+
   /* ================= ZOOM ================= */
   #zoom{position:fixed;inset:0;z-index:60;display:none;background:rgba(8,8,7,.95);padding:30px;place-items:center}
   #zoom.on{display:grid}
@@ -253,1008 +269,52 @@
    FUENTE DE DATOS  —  lo único que hay que configurar
    ============================================================ */
 const CONFIG = {
-  // A) Endpoint del CMS (recomendado). Debe responder el JSON de la
-  //    especificación y con la cabecera Access-Control-Allow-Origin: *
-  //    Ej: "https://cms.patagoniafitrehab.cl/api/pantalla/sesiones"
-  endpoint: "",
+  // A) Catálogo de clientes con plan activo  (FASE 1 — no depende de la agenda)
+  //    Ej: "https://tu-cms.onrender.com/api/pantalla/clientes"
+  endpoint: "https://patagonia-fit-cms.onrender.com/api/pantalla/clientes?token=879ef46a17512913fe60762bf6d6b13fec40cac3",
 
-  // B) Alternativa: CSV publicado de un Google Sheet con las columnas
-  //    fecha,hora,cliente,tipo,dia,objetivo,bloque,rondas,reps,ejercicio,carga
+  // B) Sesiones agendadas del día  (FASE 2 — cuando se agende entrenamiento)
+  //    Si se define, la pantalla carga sola la gente de cada bloque horario.
+  endpointAgenda: "",
+
+  // C) Alternativa sin CMS: CSV publicado de Google Sheets
   csv: "",
 
   fecha: "",                 // vacío = hoy
-  refrescoSegundos: 120,     // 0 = no refrescar solo
-  cargarHoraActual: true,    // al abrir, proyecta sola la gente de esta hora
+  refrescoSegundos: 300,     // 0 = no refrescar solo
+  cargarHoraActual: true,    // solo aplica en modo agenda
   capacidad: 15
 };
 
-const DEMO = {
- "box": "Patagonia Fit",
- "fecha": "2026-08-17",
- "bloque_horario": "07:00",
- "clientes": [
-  {
-   "nombre": "Ivonne",
-   "dia": "Día 2",
-   "objetivo": "Hombro / core",
-   "bloques": [
-    {
-     "titulo": "Movilidad y activación",
-     "rondas": "x2",
-     "ejercicios": [
-      {
-       "reps": "20",
-       "nombre": "Cat-dog"
-      },
-      {
-       "reps": "8",
-       "nombre": "Rotación pared codo flexionado"
-      },
-      {
-       "reps": "2",
-       "nombre": "Monster walk"
-      },
-      {
-       "reps": "",
-       "nombre": "Hollow m.e."
-      }
-     ]
-    },
-    {
-     "titulo": "Fuerza y estabilidad",
-     "rondas": "x2-3",
-     "ejercicios": [
-      {
-       "reps": "12",
-       "nombre": "Leg press"
-      },
-      {
-       "reps": "10",
-       "nombre": "Pull apart d.c."
-      },
-      {
-       "reps": "12",
-       "nombre": "Hip adduction"
-      },
-      {
-       "reps": "10",
-       "nombre": "Press militar 2 db"
-      },
-      {
-       "reps": "20",
-       "nombre": "Deadbug + elásticos"
-      }
-     ]
-    }
-   ],
-   "tipo": "entrenamiento",
-   "hora": "07:00",
-   "id": "c1"
-  },
-  {
-   "nombre": "Catherine",
-   "dia": "Día 2",
-   "objetivo": "Tren inferior",
-   "bloques": [
-    {
-     "titulo": "Movilidad y activación",
-     "rondas": "x2",
-     "ejercicios": [
-      {
-       "reps": "8",
-       "nombre": "Elongación cuádriceps"
-      },
-      {
-       "reps": "2",
-       "nombre": "Caminata cruzada"
-      },
-      {
-       "reps": "12",
-       "nombre": "Kanguro squat"
-      },
-      {
-       "reps": "2",
-       "nombre": "Monster walk"
-      }
-     ]
-    },
-    {
-     "titulo": "Fuerza y estabilidad",
-     "rondas": "x3",
-     "ejercicios": [
-      {
-       "reps": "12",
-       "nombre": "Squat pulse"
-      },
-      {
-       "reps": "12",
-       "nombre": "Plancha lateral + abducción"
-      },
-      {
-       "reps": "20",
-       "nombre": "Birdog + traslado ktb"
-      }
-     ]
-    },
-    {
-     "titulo": "Complementario",
-     "rondas": "x3",
-     "ejercicios": [
-      {
-       "reps": "8-10",
-       "nombre": "Estación unilateral + abducción"
-      },
-      {
-       "reps": "15",
-       "nombre": "Hip abducción"
-      },
-      {
-       "reps": "",
-       "nombre": "Hollow m.e."
-      }
-     ]
-    }
-   ],
-   "tipo": "entrenamiento",
-   "hora": "07:00",
-   "id": "c2"
-  },
-  {
-   "nombre": "Ricardo",
-   "dia": "Día 2",
-   "objetivo": "Fuerza general",
-   "bloques": [
-    {
-     "titulo": "Movilidad y activación",
-     "rondas": "x2",
-     "ejercicios": [
-      {
-       "reps": "10",
-       "nombre": "Rotación pared"
-      },
-      {
-       "reps": "10",
-       "nombre": "Extensión de rodilla"
-      },
-      {
-       "reps": "10",
-       "nombre": "Movilidad hombro elástico"
-      },
-      {
-       "reps": "30-40s",
-       "nombre": "Plancha isométrica"
-      }
-     ]
-    },
-    {
-     "titulo": "Fuerza y estabilidad",
-     "rondas": "x3",
-     "ejercicios": [
-      {
-       "reps": "12",
-       "nombre": "Squat + 1 db",
-       "carga": "20 lb"
-      },
-      {
-       "reps": "10",
-       "nombre": "Pull apart d.c.",
-       "carga": "3 kg"
-      },
-      {
-       "reps": "12",
-       "nombre": "Hip abduction",
-       "carga": "50-60 lb"
-      },
-      {
-       "reps": "8",
-       "nombre": "Press militar 1 db",
-       "carga": "15 lb"
-      },
-      {
-       "reps": "20",
-       "nombre": "Shoulder tap"
-      }
-     ]
-    }
-   ],
-   "tipo": "entrenamiento",
-   "hora": "07:00",
-   "id": "c3"
-  },
-  {
-   "nombre": "M. José",
-   "dia": "Día 2",
-   "objetivo": "Hombro / escápula",
-   "bloques": [
-    {
-     "titulo": "Movilidad y activación",
-     "rondas": "x2",
-     "ejercicios": [
-      {
-       "reps": "8",
-       "nombre": "Rot. externa hombro bastón + interna"
-      },
-      {
-       "reps": "12",
-       "nombre": "YWT"
-      },
-      {
-       "reps": "12",
-       "nombre": "Push up escapular en cajón"
-      },
-      {
-       "reps": "30-40s",
-       "nombre": "Plancha isométrica"
-      }
-     ]
-    },
-    {
-     "titulo": "Fuerza y estabilidad",
-     "rondas": "x2-3",
-     "ejercicios": [
-      {
-       "reps": "8-12",
-       "nombre": "Cuban press discos"
-      },
-      {
-       "reps": "2",
-       "nombre": "Monster walk"
-      },
-      {
-       "reps": "12",
-       "nombre": "Serrato push 1 db"
-      },
-      {
-       "reps": "12",
-       "nombre": "Pull down kairos"
-      },
-      {
-       "reps": "10",
-       "nombre": "Press pallof anterior d.c."
-      }
-     ]
-    }
-   ],
-   "tipo": "kinesiologia",
-   "hora": "07:00",
-   "id": "c4"
-  },
-  {
-   "nombre": "Julio",
-   "dia": "Día 1",
-   "objetivo": "Fuerza tren inferior",
-   "bloques": [
-    {
-     "titulo": "Movilidad y activación",
-     "rondas": "x1",
-     "ejercicios": [
-      {
-       "reps": "10",
-       "nombre": "Kanguro squat"
-      },
-      {
-       "reps": "8",
-       "nombre": "Rotación elástico"
-      },
-      {
-       "reps": "2",
-       "nombre": "Monster walk"
-      },
-      {
-       "reps": "8",
-       "nombre": "Gusanitos"
-      }
-     ]
-    },
-    {
-     "titulo": "Fuerza principal",
-     "rondas": "x3",
-     "ejercicios": [
-      {
-       "reps": "10-12",
-       "nombre": "Hack squat",
-       "carga": "0-5 kg x lado"
-      },
-      {
-       "reps": "12",
-       "nombre": "Pull apart d.c.",
-       "carga": "3-4,5 kg"
-      },
-      {
-       "reps": "20",
-       "nombre": "Deadbug + 1 db"
-      }
-     ]
-    },
-    {
-     "titulo": "Accesorios",
-     "rondas": "x3",
-     "ejercicios": [
-      {
-       "reps": "12",
-       "nombre": "Leg extension",
-       "carga": "30-40 kg"
-      },
-      {
-       "reps": "10",
-       "nombre": "Remo 1 db"
-      },
-      {
-       "reps": "12",
-       "nombre": "Curl bíceps"
-      }
-     ]
-    }
-   ],
-   "tipo": "entrenamiento",
-   "hora": "08:00",
-   "id": "c5"
-  },
-  {
-   "nombre": "Gipsy",
-   "dia": "Día 2",
-   "objetivo": "Full body",
-   "bloques": [
-    {
-     "titulo": "Movilidad y activación",
-     "rondas": "x2",
-     "ejercicios": [
-      {
-       "reps": "20",
-       "nombre": "Movilidad cadera"
-      },
-      {
-       "reps": "2",
-       "nombre": "Monster walk"
-      },
-      {
-       "reps": "8",
-       "nombre": "Gusanitos"
-      },
-      {
-       "reps": "10",
-       "nombre": "Plancha lateral + abducción"
-      }
-     ]
-    },
-    {
-     "titulo": "Fuerza y estabilidad",
-     "rondas": "x3",
-     "ejercicios": [
-      {
-       "reps": "10",
-       "nombre": "Step up frontal 2 db"
-      },
-      {
-       "reps": "12",
-       "nombre": "Chest press"
-      }
-     ]
-    },
-    {
-     "titulo": "Fuerza principal",
-     "rondas": "x3",
-     "ejercicios": [
-      {
-       "reps": "12",
-       "nombre": "Hip thrust bb"
-      },
-      {
-       "reps": "12",
-       "nombre": "Press militar 2 db"
-      },
-      {
-       "reps": "15",
-       "nombre": "Leg extension"
-      }
-     ]
-    },
-    {
-     "titulo": "Complementario",
-     "rondas": "x3",
-     "ejercicios": [
-      {
-       "reps": "15",
-       "nombre": "Bird dog slide"
-      },
-      {
-       "reps": "15",
-       "nombre": "Tríceps"
-      }
-     ]
-    }
-   ],
-   "tipo": "entrenamiento",
-   "hora": "08:00",
-   "id": "c6"
-  },
-  {
-   "nombre": "Juan Antonio",
-   "dia": "Día 1",
-   "objetivo": "Fuerza y estabilidad",
-   "bloques": [
-    {
-     "titulo": "Movilidad y activación",
-     "rondas": "x1-2",
-     "ejercicios": [
-      {
-       "reps": "10",
-       "nombre": "Extensión de rodilla"
-      },
-      {
-       "reps": "8",
-       "nombre": "Rotación de tronco pared"
-      },
-      {
-       "reps": "2",
-       "nombre": "Monster walk"
-      }
-     ]
-    },
-    {
-     "titulo": "Fuerza y estabilidad",
-     "rondas": "x2-3",
-     "ejercicios": [
-      {
-       "reps": "10",
-       "nombre": "Squat técnica + banda",
-       "carga": "50 kg"
-      },
-      {
-       "reps": "10",
-       "nombre": "Remo kairos",
-       "carga": "40-50 lb"
-      },
-      {
-       "reps": "10",
-       "nombre": "Hip abduction",
-       "carga": "50-60 lb"
-      },
-      {
-       "reps": "10",
-       "nombre": "Press pallof anterior d.c."
-      }
-     ]
-    }
-   ],
-   "tipo": "kinesiologia",
-   "hora": "08:00",
-   "id": "c7"
-  },
-  {
-   "nombre": "Felipe",
-   "dia": "Día 2",
-   "objetivo": "Fuerza barra",
-   "bloques": [
-    {
-     "titulo": "Movilidad y activación",
-     "rondas": "x3",
-     "ejercicios": [
-      {
-       "reps": "",
-       "nombre": "Movilidad bird dog"
-      },
-      {
-       "reps": "8 x lado",
-       "nombre": "Movilidad cadera + rot. externa"
-      },
-      {
-       "reps": "10",
-       "nombre": "Push up escapular"
-      },
-      {
-       "reps": "10",
-       "nombre": "Movilidad hombro"
-      }
-     ]
-    },
-    {
-     "titulo": "Fuerza principal",
-     "rondas": "x3",
-     "ejercicios": [
-      {
-       "reps": "12",
-       "nombre": "Squat barra",
-       "carga": "50 kg"
-      },
-      {
-       "reps": "12",
-       "nombre": "Press banco barra",
-       "carga": "55 kg"
-      },
-      {
-       "reps": "10 x lado",
-       "nombre": "Estocada posterior 2 db",
-       "carga": "25 lb"
-      }
-     ]
-    },
-    {
-     "titulo": "Accesorios",
-     "rondas": "x3",
-     "ejercicios": [
-      {
-       "reps": "12",
-       "nombre": "Press militar 2 db",
-       "carga": "33 kg"
-      },
-      {
-       "reps": "12",
-       "nombre": "Press pallof",
-       "carga": "10,5 kg"
-      },
-      {
-       "reps": "20s",
-       "nombre": "Plancha copenhague"
-      },
-      {
-       "reps": "10",
-       "nombre": "Tríceps tras nuca",
-       "carga": "47 lb"
-      }
-     ]
-    }
-   ],
-   "tipo": "entrenamiento",
-   "hora": "08:00",
-   "id": "c8"
-  },
-  {
-   "nombre": "Sofía",
-   "dia": "Día 2",
-   "objetivo": "Movilidad / core",
-   "bloques": [
-    {
-     "titulo": "Movilidad y activación",
-     "rondas": "x2",
-     "ejercicios": [
-      {
-       "reps": "2",
-       "nombre": "Caminata cruzada"
-      },
-      {
-       "reps": "8",
-       "nombre": "Rot. tronco codo flexionado"
-      },
-      {
-       "reps": "20",
-       "nombre": "Cat-dog lumbopélvico"
-      },
-      {
-       "reps": "10",
-       "nombre": "Movilidad 90-90"
-      }
-     ]
-    },
-    {
-     "titulo": "Fuerza y estabilidad",
-     "rondas": "x2-3",
-     "ejercicios": [
-      {
-       "reps": "2",
-       "nombre": "Monster walk"
-      },
-      {
-       "reps": "10",
-       "nombre": "Pull apart d.c."
-      },
-      {
-       "reps": "15",
-       "nombre": "Squat tempo + banda"
-      },
-      {
-       "reps": "20",
-       "nombre": "Deadbug dinámico"
-      }
-     ]
-    }
-   ],
-   "tipo": "kinesiologia",
-   "hora": "09:00",
-   "id": "c9"
-  },
-  {
-   "nombre": "Marta",
-   "dia": "Día 2",
-   "objetivo": "Postural / hombro",
-   "bloques": [
-    {
-     "titulo": "Movilidad y activación",
-     "rondas": "x2",
-     "ejercicios": [
-      {
-       "reps": "10",
-       "nombre": "Movilidad birdog"
-      },
-      {
-       "reps": "15",
-       "nombre": "Ángeles"
-      },
-      {
-       "reps": "30s",
-       "nombre": "Plancha isométrica"
-      }
-     ]
-    },
-    {
-     "titulo": "Fuerza y estabilidad",
-     "rondas": "x2-3",
-     "ejercicios": [
-      {
-       "reps": "2",
-       "nombre": "Monster walk"
-      },
-      {
-       "reps": "10",
-       "nombre": "Pull apart d.c."
-      },
-      {
-       "reps": "10",
-       "nombre": "Hip abduction"
-      },
-      {
-       "reps": "10",
-       "nombre": "Remo kairos"
-      }
-     ]
-    }
-   ],
-   "tipo": "kinesiologia",
-   "hora": "09:00",
-   "id": "c10"
-  },
-  {
-   "nombre": "Aurora",
-   "dia": "Día 1",
-   "objetivo": "Rendimiento / VBT",
-   "bloques": [
-    {
-     "titulo": "A · Movilidad",
-     "rondas": "x1",
-     "ejercicios": [
-      {
-       "reps": "8",
-       "nombre": "Movilidad isquio-psoas"
-      },
-      {
-       "reps": "10",
-       "nombre": "Movilidad cadera + piramidal"
-      },
-      {
-       "reps": "3",
-       "nombre": "Movilidad complex hombro"
-      }
-     ]
-    },
-    {
-     "titulo": "B · Potenciación ligera",
-     "rondas": "x3",
-     "ejercicios": [
-      {
-       "reps": "3",
-       "nombre": "Abalakov",
-       "carga": "desc. 90 s"
-      }
-     ]
-    },
-    {
-     "titulo": "C · Fuerza principal",
-     "rondas": "x3",
-     "ejercicios": [
-      {
-       "reps": "6",
-       "nombre": "RDL bilateral",
-       "carga": "VBT 0,30-0,45 m/s · VL ≤10%"
-      },
-      {
-       "reps": "8",
-       "nombre": "Hip thrust",
-       "carga": "moderada-alta"
-      },
-      {
-       "reps": "5",
-       "nombre": "Chin ups continuo",
-       "carga": "+ carga progresiva"
-      },
-      {
-       "reps": "4-5",
-       "nombre": "Press banco"
-      }
-     ]
-    },
-    {
-     "titulo": "D · Específicos + correctivo",
-     "rondas": "x2",
-     "ejercicios": [
-      {
-       "reps": "8 x lado",
-       "nombre": "RDL unilateral"
-      },
-      {
-       "reps": "20s",
-       "nombre": "Plancha copenhague"
-      },
-      {
-       "reps": "8",
-       "nombre": "YWT"
-      }
-     ]
-    }
-   ],
-   "tipo": "kinesiologia",
-   "hora": "09:00",
-   "id": "c11"
-  },
-  {
-   "nombre": "Cristina",
-   "dia": "Día 1",
-   "objetivo": "Full body",
-   "bloques": [
-    {
-     "titulo": "Movilidad y activación",
-     "rondas": "x2",
-     "ejercicios": [
-      {
-       "reps": "8",
-       "nombre": "Movilidad isquio-psoas"
-      },
-      {
-       "reps": "20",
-       "nombre": "Cat-dog lumbopelvis"
-      },
-      {
-       "reps": "12",
-       "nombre": "Remo elástico + squat"
-      },
-      {
-       "reps": "20",
-       "nombre": "Shoulder tap"
-      }
-     ]
-    },
-    {
-     "titulo": "Fuerza principal",
-     "rondas": "x3",
-     "ejercicios": [
-      {
-       "reps": "12",
-       "nombre": "Global squat 1 db",
-       "carga": "12,5 kg"
-      },
-      {
-       "reps": "12",
-       "nombre": "Remo T",
-       "carga": "15 kg"
-      },
-      {
-       "reps": "10",
-       "nombre": "Press pallof rotación"
-      }
-     ]
-    },
-    {
-     "titulo": "Accesorios",
-     "rondas": "x3",
-     "ejercicios": [
-      {
-       "reps": "12",
-       "nombre": "Hip abduction",
-       "carga": "90 lb"
-      },
-      {
-       "reps": "8-12",
-       "nombre": "Press banco smith",
-       "carga": "1,5 kg"
-      },
-      {
-       "reps": "30s",
-       "nombre": "Complex plancha"
-      }
-     ]
-    }
-   ],
-   "tipo": "entrenamiento",
-   "hora": "09:00",
-   "id": "c12"
-  },
-  {
-   "nombre": "Jorge",
-   "dia": "Día 2",
-   "objetivo": "Full body",
-   "bloques": [
-    {
-     "titulo": "Movilidad y activación",
-     "rondas": "x2",
-     "ejercicios": [
-      {
-       "reps": "10",
-       "nombre": "Movilidad cadera"
-      },
-      {
-       "reps": "10",
-       "nombre": "Rotación aductor"
-      },
-      {
-       "reps": "10",
-       "nombre": "Movilidad hombro bastón"
-      },
-      {
-       "reps": "10",
-       "nombre": "Remo elástico"
-      }
-     ]
-    },
-    {
-     "titulo": "Fuerza y estabilidad",
-     "rondas": "x3",
-     "ejercicios": [
-      {
-       "reps": "10",
-       "nombre": "Global squat 1 db"
-      },
-      {
-       "reps": "10",
-       "nombre": "Pull down unilateral d.c."
-      },
-      {
-       "reps": "12",
-       "nombre": "Puente glúteo GB"
-      },
-      {
-       "reps": "10",
-       "nombre": "Chest press"
-      },
-      {
-       "reps": "20",
-       "nombre": "Shoulder tap"
-      }
-     ]
-    }
-   ],
-   "tipo": "entrenamiento",
-   "hora": "10:00",
-   "id": "c13"
-  },
-  {
-   "nombre": "Pablo",
-   "dia": "Día 1",
-   "objetivo": "Fuerza general",
-   "bloques": [
-    {
-     "titulo": "Movilidad y activación",
-     "rondas": "x2",
-     "ejercicios": [
-      {
-       "reps": "10",
-       "nombre": "Movilidad cadera"
-      },
-      {
-       "reps": "20",
-       "nombre": "Cat-dog"
-      },
-      {
-       "reps": "2",
-       "nombre": "Monster walk"
-      }
-     ]
-    },
-    {
-     "titulo": "Fuerza principal",
-     "rondas": "x3",
-     "ejercicios": [
-      {
-       "reps": "10",
-       "nombre": "Peso muerto",
-       "carga": "60 kg"
-      },
-      {
-       "reps": "12",
-       "nombre": "Remo kairos",
-       "carga": "50 lb"
-      },
-      {
-       "reps": "12",
-       "nombre": "Press militar 2 db",
-       "carga": "20 lb"
-      },
-      {
-       "reps": "30s",
-       "nombre": "Plancha isométrica"
-      }
-     ]
-    }
-   ],
-   "tipo": "entrenamiento",
-   "hora": "10:00",
-   "id": "c14"
-  },
-  {
-   "nombre": "Valentina",
-   "dia": "Día 2",
-   "objetivo": "Rodilla / correctivo",
-   "bloques": [
-    {
-     "titulo": "Movilidad y activación",
-     "rondas": "x2",
-     "ejercicios": [
-      {
-       "reps": "10",
-       "nombre": "Extensión de rodilla"
-      },
-      {
-       "reps": "12",
-       "nombre": "Kanguro squat"
-      },
-      {
-       "reps": "2",
-       "nombre": "Monster walk"
-      }
-     ]
-    },
-    {
-     "titulo": "Fuerza y estabilidad",
-     "rondas": "x2-3",
-     "ejercicios": [
-      {
-       "reps": "12",
-       "nombre": "Leg press",
-       "carga": "40 kg"
-      },
-      {
-       "reps": "10 x lado",
-       "nombre": "Estocada posterior"
-      },
-      {
-       "reps": "12",
-       "nombre": "Hip abduction",
-       "carga": "50 lb"
-      },
-      {
-       "reps": "20",
-       "nombre": "Deadbug + elásticos"
-      }
-     ]
-    }
-   ],
-   "tipo": "kinesiologia",
-   "hora": "10:00",
-   "id": "c15"
-  }
- ],
- "capacidad": 15
-};
+const DEMO = {"clientes": [{"id": "cl0", "nombre": "Ivonne", "rut": "10.000.000-0", "servicio": "entrenamiento", "profesional": "Cristóbal Salvo", "plan": {"nombre": "Mesociclo 1", "objetivo": "Hombro / core"}, "sesiones": [{"id": "ps0_0", "etiqueta": "Sesión A", "titulo": "Tren inferior + core", "hecha": true, "bloques": [{"titulo": "Movilidad y activación", "rondas": "x2", "ejercicios": [{"reps": "20", "nombre": "Cat-dog"}, {"reps": "8", "nombre": "Rotación pared codo flexionado"}, {"reps": "2", "nombre": "Monster walk"}, {"reps": "", "nombre": "Hollow m.e."}]}, {"titulo": "Fuerza y estabilidad", "rondas": "x2-3", "ejercicios": [{"reps": "12", "nombre": "Leg press"}, {"reps": "10", "nombre": "Pull apart d.c."}, {"reps": "12", "nombre": "Hip adduction"}, {"reps": "10", "nombre": "Press militar 2 db"}, {"reps": "20", "nombre": "Deadbug + elásticos"}]}]}, {"id": "ps0_1", "etiqueta": "Sesión B", "titulo": "Empuje + estabilidad", "hecha": false, "bloques": [{"titulo": "Fuerza y estabilidad", "rondas": "x2-3", "ejercicios": [{"reps": "12", "nombre": "Leg press"}, {"reps": "10", "nombre": "Pull apart d.c."}, {"reps": "12", "nombre": "Hip adduction"}, {"reps": "10", "nombre": "Press militar 2 db"}, {"reps": "20", "nombre": "Deadbug + elásticos"}]}, {"titulo": "Movilidad y activación", "rondas": "x2", "ejercicios": [{"reps": "20", "nombre": "Cat-dog"}, {"reps": "8", "nombre": "Rotación pared codo flexionado"}, {"reps": "2", "nombre": "Monster walk"}, {"reps": "", "nombre": "Hollow m.e."}]}]}]}, {"id": "cl1", "nombre": "Catherine", "rut": "11.000.001-1", "servicio": "entrenamiento", "profesional": "Cristóbal Salvo", "plan": {"nombre": "Mesociclo 1", "objetivo": "Tren inferior"}, "sesiones": [{"id": "ps1_0", "etiqueta": "Sesión A", "titulo": "Tren inferior + core", "hecha": false, "bloques": [{"titulo": "Movilidad y activación", "rondas": "x2", "ejercicios": [{"reps": "8", "nombre": "Elongación cuádriceps"}, {"reps": "2", "nombre": "Caminata cruzada"}, {"reps": "12", "nombre": "Kanguro squat"}, {"reps": "2", "nombre": "Monster walk"}]}, {"titulo": "Fuerza y estabilidad", "rondas": "x3", "ejercicios": [{"reps": "12", "nombre": "Squat pulse"}, {"reps": "12", "nombre": "Plancha lateral + abducción"}, {"reps": "20", "nombre": "Birdog + traslado ktb"}]}, {"titulo": "Complementario", "rondas": "x3", "ejercicios": [{"reps": "8-10", "nombre": "Estación unilateral + abducción"}, {"reps": "15", "nombre": "Hip abducción"}, {"reps": "", "nombre": "Hollow m.e."}]}]}, {"id": "ps1_1", "etiqueta": "Sesión B", "titulo": "Empuje + estabilidad", "hecha": false, "bloques": [{"titulo": "Complementario", "rondas": "x3", "ejercicios": [{"reps": "8-10", "nombre": "Estación unilateral + abducción"}, {"reps": "15", "nombre": "Hip abducción"}, {"reps": "", "nombre": "Hollow m.e."}]}, {"titulo": "Fuerza y estabilidad", "rondas": "x3", "ejercicios": [{"reps": "12", "nombre": "Squat pulse"}, {"reps": "12", "nombre": "Plancha lateral + abducción"}, {"reps": "20", "nombre": "Birdog + traslado ktb"}]}, {"titulo": "Movilidad y activación", "rondas": "x2", "ejercicios": [{"reps": "8", "nombre": "Elongación cuádriceps"}, {"reps": "2", "nombre": "Caminata cruzada"}, {"reps": "12", "nombre": "Kanguro squat"}, {"reps": "2", "nombre": "Monster walk"}]}]}]}, {"id": "cl2", "nombre": "Ricardo", "rut": "12.000.002-2", "servicio": "entrenamiento", "profesional": "Cristóbal Salvo", "plan": {"nombre": "Mesociclo 1", "objetivo": "Fuerza general"}, "sesiones": [{"id": "ps2_0", "etiqueta": "Sesión A", "titulo": "Tren inferior + core", "hecha": false, "bloques": [{"titulo": "Movilidad y activación", "rondas": "x2", "ejercicios": [{"reps": "10", "nombre": "Rotación pared"}, {"reps": "10", "nombre": "Extensión de rodilla"}, {"reps": "10", "nombre": "Movilidad hombro elástico"}, {"reps": "30-40s", "nombre": "Plancha isométrica"}]}, {"titulo": "Fuerza y estabilidad", "rondas": "x3", "ejercicios": [{"reps": "12", "nombre": "Squat + 1 db", "carga": "20 lb"}, {"reps": "10", "nombre": "Pull apart d.c.", "carga": "3 kg"}, {"reps": "12", "nombre": "Hip abduction", "carga": "50-60 lb"}, {"reps": "8", "nombre": "Press militar 1 db", "carga": "15 lb"}, {"reps": "20", "nombre": "Shoulder tap"}]}]}, {"id": "ps2_1", "etiqueta": "Sesión B", "titulo": "Empuje + estabilidad", "hecha": false, "bloques": [{"titulo": "Fuerza y estabilidad", "rondas": "x3", "ejercicios": [{"reps": "12", "nombre": "Squat + 1 db", "carga": "20 lb"}, {"reps": "10", "nombre": "Pull apart d.c.", "carga": "3 kg"}, {"reps": "12", "nombre": "Hip abduction", "carga": "50-60 lb"}, {"reps": "8", "nombre": "Press militar 1 db", "carga": "15 lb"}, {"reps": "20", "nombre": "Shoulder tap"}]}, {"titulo": "Movilidad y activación", "rondas": "x2", "ejercicios": [{"reps": "10", "nombre": "Rotación pared"}, {"reps": "10", "nombre": "Extensión de rodilla"}, {"reps": "10", "nombre": "Movilidad hombro elástico"}, {"reps": "30-40s", "nombre": "Plancha isométrica"}]}]}]}, {"id": "cl3", "nombre": "M. José", "rut": "13.000.003-3", "servicio": "kinesiologia", "profesional": "Luis Martinez", "plan": {"nombre": "Mesociclo 1", "objetivo": "Hombro / escápula"}, "sesiones": [{"id": "ps3_0", "etiqueta": "Sesión A", "titulo": "Tren inferior + core", "hecha": false, "bloques": [{"titulo": "Movilidad y activación", "rondas": "x2", "ejercicios": [{"reps": "8", "nombre": "Rot. externa hombro bastón + interna"}, {"reps": "12", "nombre": "YWT"}, {"reps": "12", "nombre": "Push up escapular en cajón"}, {"reps": "30-40s", "nombre": "Plancha isométrica"}]}, {"titulo": "Fuerza y estabilidad", "rondas": "x2-3", "ejercicios": [{"reps": "8-12", "nombre": "Cuban press discos"}, {"reps": "2", "nombre": "Monster walk"}, {"reps": "12", "nombre": "Serrato push 1 db"}, {"reps": "12", "nombre": "Pull down kairos"}, {"reps": "10", "nombre": "Press pallof anterior d.c."}]}]}, {"id": "ps3_1", "etiqueta": "Sesión B", "titulo": "Empuje + estabilidad", "hecha": false, "bloques": [{"titulo": "Fuerza y estabilidad", "rondas": "x2-3", "ejercicios": [{"reps": "8-12", "nombre": "Cuban press discos"}, {"reps": "2", "nombre": "Monster walk"}, {"reps": "12", "nombre": "Serrato push 1 db"}, {"reps": "12", "nombre": "Pull down kairos"}, {"reps": "10", "nombre": "Press pallof anterior d.c."}]}, {"titulo": "Movilidad y activación", "rondas": "x2", "ejercicios": [{"reps": "8", "nombre": "Rot. externa hombro bastón + interna"}, {"reps": "12", "nombre": "YWT"}, {"reps": "12", "nombre": "Push up escapular en cajón"}, {"reps": "30-40s", "nombre": "Plancha isométrica"}]}]}]}, {"id": "cl4", "nombre": "Julio", "rut": "14.000.004-4", "servicio": "entrenamiento", "profesional": "Cristóbal Salvo", "plan": {"nombre": "Mesociclo 1", "objetivo": "Fuerza tren inferior"}, "sesiones": [{"id": "ps4_0", "etiqueta": "Sesión A", "titulo": "Tren inferior + core", "hecha": true, "bloques": [{"titulo": "Movilidad y activación", "rondas": "x1", "ejercicios": [{"reps": "10", "nombre": "Kanguro squat"}, {"reps": "8", "nombre": "Rotación elástico"}, {"reps": "2", "nombre": "Monster walk"}, {"reps": "8", "nombre": "Gusanitos"}]}, {"titulo": "Fuerza principal", "rondas": "x3", "ejercicios": [{"reps": "10-12", "nombre": "Hack squat", "carga": "0-5 kg x lado"}, {"reps": "12", "nombre": "Pull apart d.c.", "carga": "3-4,5 kg"}, {"reps": "20", "nombre": "Deadbug + 1 db"}]}, {"titulo": "Accesorios", "rondas": "x3", "ejercicios": [{"reps": "12", "nombre": "Leg extension", "carga": "30-40 kg"}, {"reps": "10", "nombre": "Remo 1 db"}, {"reps": "12", "nombre": "Curl bíceps"}]}]}, {"id": "ps4_1", "etiqueta": "Sesión B", "titulo": "Empuje + estabilidad", "hecha": false, "bloques": [{"titulo": "Accesorios", "rondas": "x3", "ejercicios": [{"reps": "12", "nombre": "Leg extension", "carga": "30-40 kg"}, {"reps": "10", "nombre": "Remo 1 db"}, {"reps": "12", "nombre": "Curl bíceps"}]}, {"titulo": "Fuerza principal", "rondas": "x3", "ejercicios": [{"reps": "10-12", "nombre": "Hack squat", "carga": "0-5 kg x lado"}, {"reps": "12", "nombre": "Pull apart d.c.", "carga": "3-4,5 kg"}, {"reps": "20", "nombre": "Deadbug + 1 db"}]}, {"titulo": "Movilidad y activación", "rondas": "x1", "ejercicios": [{"reps": "10", "nombre": "Kanguro squat"}, {"reps": "8", "nombre": "Rotación elástico"}, {"reps": "2", "nombre": "Monster walk"}, {"reps": "8", "nombre": "Gusanitos"}]}]}]}, {"id": "cl5", "nombre": "Gipsy", "rut": "15.000.005-5", "servicio": "entrenamiento", "profesional": "Cristóbal Salvo", "plan": {"nombre": "Mesociclo 1", "objetivo": "Full body"}, "sesiones": [{"id": "ps5_0", "etiqueta": "Sesión A", "titulo": "Tren inferior + core", "hecha": false, "bloques": [{"titulo": "Movilidad y activación", "rondas": "x2", "ejercicios": [{"reps": "20", "nombre": "Movilidad cadera"}, {"reps": "2", "nombre": "Monster walk"}, {"reps": "8", "nombre": "Gusanitos"}, {"reps": "10", "nombre": "Plancha lateral + abducción"}]}, {"titulo": "Fuerza y estabilidad", "rondas": "x3", "ejercicios": [{"reps": "10", "nombre": "Step up frontal 2 db"}, {"reps": "12", "nombre": "Chest press"}]}, {"titulo": "Fuerza principal", "rondas": "x3", "ejercicios": [{"reps": "12", "nombre": "Hip thrust bb"}, {"reps": "12", "nombre": "Press militar 2 db"}, {"reps": "15", "nombre": "Leg extension"}]}, {"titulo": "Complementario", "rondas": "x3", "ejercicios": [{"reps": "15", "nombre": "Bird dog slide"}, {"reps": "15", "nombre": "Tríceps"}]}]}, {"id": "ps5_1", "etiqueta": "Sesión B", "titulo": "Empuje + estabilidad", "hecha": false, "bloques": [{"titulo": "Complementario", "rondas": "x3", "ejercicios": [{"reps": "15", "nombre": "Bird dog slide"}, {"reps": "15", "nombre": "Tríceps"}]}, {"titulo": "Fuerza principal", "rondas": "x3", "ejercicios": [{"reps": "12", "nombre": "Hip thrust bb"}, {"reps": "12", "nombre": "Press militar 2 db"}, {"reps": "15", "nombre": "Leg extension"}]}, {"titulo": "Fuerza y estabilidad", "rondas": "x3", "ejercicios": [{"reps": "10", "nombre": "Step up frontal 2 db"}, {"reps": "12", "nombre": "Chest press"}]}, {"titulo": "Movilidad y activación", "rondas": "x2", "ejercicios": [{"reps": "20", "nombre": "Movilidad cadera"}, {"reps": "2", "nombre": "Monster walk"}, {"reps": "8", "nombre": "Gusanitos"}, {"reps": "10", "nombre": "Plancha lateral + abducción"}]}]}]}, {"id": "cl6", "nombre": "Juan Antonio", "rut": "16.000.006-6", "servicio": "kinesiologia", "profesional": "Luis Martinez", "plan": {"nombre": "Mesociclo 1", "objetivo": "Fuerza y estabilidad"}, "sesiones": [{"id": "ps6_0", "etiqueta": "Sesión A", "titulo": "Tren inferior + core", "hecha": false, "bloques": [{"titulo": "Movilidad y activación", "rondas": "x1-2", "ejercicios": [{"reps": "10", "nombre": "Extensión de rodilla"}, {"reps": "8", "nombre": "Rotación de tronco pared"}, {"reps": "2", "nombre": "Monster walk"}]}, {"titulo": "Fuerza y estabilidad", "rondas": "x2-3", "ejercicios": [{"reps": "10", "nombre": "Squat técnica + banda", "carga": "50 kg"}, {"reps": "10", "nombre": "Remo kairos", "carga": "40-50 lb"}, {"reps": "10", "nombre": "Hip abduction", "carga": "50-60 lb"}, {"reps": "10", "nombre": "Press pallof anterior d.c."}]}]}, {"id": "ps6_1", "etiqueta": "Sesión B", "titulo": "Empuje + estabilidad", "hecha": false, "bloques": [{"titulo": "Fuerza y estabilidad", "rondas": "x2-3", "ejercicios": [{"reps": "10", "nombre": "Squat técnica + banda", "carga": "50 kg"}, {"reps": "10", "nombre": "Remo kairos", "carga": "40-50 lb"}, {"reps": "10", "nombre": "Hip abduction", "carga": "50-60 lb"}, {"reps": "10", "nombre": "Press pallof anterior d.c."}]}, {"titulo": "Movilidad y activación", "rondas": "x1-2", "ejercicios": [{"reps": "10", "nombre": "Extensión de rodilla"}, {"reps": "8", "nombre": "Rotación de tronco pared"}, {"reps": "2", "nombre": "Monster walk"}]}]}]}, {"id": "cl7", "nombre": "Felipe", "rut": "17.000.007-7", "servicio": "entrenamiento", "profesional": "Cristóbal Salvo", "plan": {"nombre": "Mesociclo 1", "objetivo": "Fuerza barra"}, "sesiones": [{"id": "ps7_0", "etiqueta": "Sesión A", "titulo": "Tren inferior + core", "hecha": false, "bloques": [{"titulo": "Movilidad y activación", "rondas": "x3", "ejercicios": [{"reps": "", "nombre": "Movilidad bird dog"}, {"reps": "8 x lado", "nombre": "Movilidad cadera + rot. externa"}, {"reps": "10", "nombre": "Push up escapular"}, {"reps": "10", "nombre": "Movilidad hombro"}]}, {"titulo": "Fuerza principal", "rondas": "x3", "ejercicios": [{"reps": "12", "nombre": "Squat barra", "carga": "50 kg"}, {"reps": "12", "nombre": "Press banco barra", "carga": "55 kg"}, {"reps": "10 x lado", "nombre": "Estocada posterior 2 db", "carga": "25 lb"}]}, {"titulo": "Accesorios", "rondas": "x3", "ejercicios": [{"reps": "12", "nombre": "Press militar 2 db", "carga": "33 kg"}, {"reps": "12", "nombre": "Press pallof", "carga": "10,5 kg"}, {"reps": "20s", "nombre": "Plancha copenhague"}, {"reps": "10", "nombre": "Tríceps tras nuca", "carga": "47 lb"}]}]}, {"id": "ps7_1", "etiqueta": "Sesión B", "titulo": "Empuje + estabilidad", "hecha": false, "bloques": [{"titulo": "Accesorios", "rondas": "x3", "ejercicios": [{"reps": "12", "nombre": "Press militar 2 db", "carga": "33 kg"}, {"reps": "12", "nombre": "Press pallof", "carga": "10,5 kg"}, {"reps": "20s", "nombre": "Plancha copenhague"}, {"reps": "10", "nombre": "Tríceps tras nuca", "carga": "47 lb"}]}, {"titulo": "Fuerza principal", "rondas": "x3", "ejercicios": [{"reps": "12", "nombre": "Squat barra", "carga": "50 kg"}, {"reps": "12", "nombre": "Press banco barra", "carga": "55 kg"}, {"reps": "10 x lado", "nombre": "Estocada posterior 2 db", "carga": "25 lb"}]}, {"titulo": "Movilidad y activación", "rondas": "x3", "ejercicios": [{"reps": "", "nombre": "Movilidad bird dog"}, {"reps": "8 x lado", "nombre": "Movilidad cadera + rot. externa"}, {"reps": "10", "nombre": "Push up escapular"}, {"reps": "10", "nombre": "Movilidad hombro"}]}]}]}, {"id": "cl8", "nombre": "Sofía", "rut": "18.000.008-8", "servicio": "kinesiologia", "profesional": "Luis Martinez", "plan": {"nombre": "Mesociclo 1", "objetivo": "Movilidad / core"}, "sesiones": [{"id": "ps8_0", "etiqueta": "Sesión A", "titulo": "Tren inferior + core", "hecha": true, "bloques": [{"titulo": "Movilidad y activación", "rondas": "x2", "ejercicios": [{"reps": "2", "nombre": "Caminata cruzada"}, {"reps": "8", "nombre": "Rot. tronco codo flexionado"}, {"reps": "20", "nombre": "Cat-dog lumbopélvico"}, {"reps": "10", "nombre": "Movilidad 90-90"}]}, {"titulo": "Fuerza y estabilidad", "rondas": "x2-3", "ejercicios": [{"reps": "2", "nombre": "Monster walk"}, {"reps": "10", "nombre": "Pull apart d.c."}, {"reps": "15", "nombre": "Squat tempo + banda"}, {"reps": "20", "nombre": "Deadbug dinámico"}]}]}, {"id": "ps8_1", "etiqueta": "Sesión B", "titulo": "Empuje + estabilidad", "hecha": false, "bloques": [{"titulo": "Fuerza y estabilidad", "rondas": "x2-3", "ejercicios": [{"reps": "2", "nombre": "Monster walk"}, {"reps": "10", "nombre": "Pull apart d.c."}, {"reps": "15", "nombre": "Squat tempo + banda"}, {"reps": "20", "nombre": "Deadbug dinámico"}]}, {"titulo": "Movilidad y activación", "rondas": "x2", "ejercicios": [{"reps": "2", "nombre": "Caminata cruzada"}, {"reps": "8", "nombre": "Rot. tronco codo flexionado"}, {"reps": "20", "nombre": "Cat-dog lumbopélvico"}, {"reps": "10", "nombre": "Movilidad 90-90"}]}]}]}, {"id": "cl9", "nombre": "Marta", "rut": "19.000.009-0", "servicio": "kinesiologia", "profesional": "Luis Martinez", "plan": {"nombre": "Mesociclo 1", "objetivo": "Postural / hombro"}, "sesiones": [{"id": "ps9_0", "etiqueta": "Sesión A", "titulo": "Tren inferior + core", "hecha": false, "bloques": [{"titulo": "Movilidad y activación", "rondas": "x2", "ejercicios": [{"reps": "10", "nombre": "Movilidad birdog"}, {"reps": "15", "nombre": "Ángeles"}, {"reps": "30s", "nombre": "Plancha isométrica"}]}, {"titulo": "Fuerza y estabilidad", "rondas": "x2-3", "ejercicios": [{"reps": "2", "nombre": "Monster walk"}, {"reps": "10", "nombre": "Pull apart d.c."}, {"reps": "10", "nombre": "Hip abduction"}, {"reps": "10", "nombre": "Remo kairos"}]}]}, {"id": "ps9_1", "etiqueta": "Sesión B", "titulo": "Empuje + estabilidad", "hecha": false, "bloques": [{"titulo": "Fuerza y estabilidad", "rondas": "x2-3", "ejercicios": [{"reps": "2", "nombre": "Monster walk"}, {"reps": "10", "nombre": "Pull apart d.c."}, {"reps": "10", "nombre": "Hip abduction"}, {"reps": "10", "nombre": "Remo kairos"}]}, {"titulo": "Movilidad y activación", "rondas": "x2", "ejercicios": [{"reps": "10", "nombre": "Movilidad birdog"}, {"reps": "15", "nombre": "Ángeles"}, {"reps": "30s", "nombre": "Plancha isométrica"}]}]}]}, {"id": "cl10", "nombre": "Aurora", "rut": "110.000.000-1", "servicio": "kinesiologia", "profesional": "Luis Martinez", "plan": {"nombre": "Mesociclo 1", "objetivo": "Rendimiento / VBT"}, "sesiones": [{"id": "ps10_0", "etiqueta": "Sesión A", "titulo": "Tren inferior + core", "hecha": false, "bloques": [{"titulo": "A · Movilidad", "rondas": "x1", "ejercicios": [{"reps": "8", "nombre": "Movilidad isquio-psoas"}, {"reps": "10", "nombre": "Movilidad cadera + piramidal"}, {"reps": "3", "nombre": "Movilidad complex hombro"}]}, {"titulo": "B · Potenciación ligera", "rondas": "x3", "ejercicios": [{"reps": "3", "nombre": "Abalakov", "carga": "desc. 90 s"}]}, {"titulo": "C · Fuerza principal", "rondas": "x3", "ejercicios": [{"reps": "6", "nombre": "RDL bilateral", "carga": "VBT 0,30-0,45 m/s · VL ≤10%"}, {"reps": "8", "nombre": "Hip thrust", "carga": "moderada-alta"}, {"reps": "5", "nombre": "Chin ups continuo", "carga": "+ carga progresiva"}, {"reps": "4-5", "nombre": "Press banco"}]}, {"titulo": "D · Específicos + correctivo", "rondas": "x2", "ejercicios": [{"reps": "8 x lado", "nombre": "RDL unilateral"}, {"reps": "20s", "nombre": "Plancha copenhague"}, {"reps": "8", "nombre": "YWT"}]}]}, {"id": "ps10_1", "etiqueta": "Sesión B", "titulo": "Empuje + estabilidad", "hecha": false, "bloques": [{"titulo": "D · Específicos + correctivo", "rondas": "x2", "ejercicios": [{"reps": "8 x lado", "nombre": "RDL unilateral"}, {"reps": "20s", "nombre": "Plancha copenhague"}, {"reps": "8", "nombre": "YWT"}]}, {"titulo": "C · Fuerza principal", "rondas": "x3", "ejercicios": [{"reps": "6", "nombre": "RDL bilateral", "carga": "VBT 0,30-0,45 m/s · VL ≤10%"}, {"reps": "8", "nombre": "Hip thrust", "carga": "moderada-alta"}, {"reps": "5", "nombre": "Chin ups continuo", "carga": "+ carga progresiva"}, {"reps": "4-5", "nombre": "Press banco"}]}, {"titulo": "B · Potenciación ligera", "rondas": "x3", "ejercicios": [{"reps": "3", "nombre": "Abalakov", "carga": "desc. 90 s"}]}, {"titulo": "A · Movilidad", "rondas": "x1", "ejercicios": [{"reps": "8", "nombre": "Movilidad isquio-psoas"}, {"reps": "10", "nombre": "Movilidad cadera + piramidal"}, {"reps": "3", "nombre": "Movilidad complex hombro"}]}]}]}, {"id": "cl11", "nombre": "Cristina", "rut": "111.000.001-2", "servicio": "entrenamiento", "profesional": "Cristóbal Salvo", "plan": {"nombre": "Mesociclo 1", "objetivo": "Full body"}, "sesiones": [{"id": "ps11_0", "etiqueta": "Sesión A", "titulo": "Tren inferior + core", "hecha": false, "bloques": [{"titulo": "Movilidad y activación", "rondas": "x2", "ejercicios": [{"reps": "8", "nombre": "Movilidad isquio-psoas"}, {"reps": "20", "nombre": "Cat-dog lumbopelvis"}, {"reps": "12", "nombre": "Remo elástico + squat"}, {"reps": "20", "nombre": "Shoulder tap"}]}, {"titulo": "Fuerza principal", "rondas": "x3", "ejercicios": [{"reps": "12", "nombre": "Global squat 1 db", "carga": "12,5 kg"}, {"reps": "12", "nombre": "Remo T", "carga": "15 kg"}, {"reps": "10", "nombre": "Press pallof rotación"}]}, {"titulo": "Accesorios", "rondas": "x3", "ejercicios": [{"reps": "12", "nombre": "Hip abduction", "carga": "90 lb"}, {"reps": "8-12", "nombre": "Press banco smith", "carga": "1,5 kg"}, {"reps": "30s", "nombre": "Complex plancha"}]}]}, {"id": "ps11_1", "etiqueta": "Sesión B", "titulo": "Empuje + estabilidad", "hecha": false, "bloques": [{"titulo": "Accesorios", "rondas": "x3", "ejercicios": [{"reps": "12", "nombre": "Hip abduction", "carga": "90 lb"}, {"reps": "8-12", "nombre": "Press banco smith", "carga": "1,5 kg"}, {"reps": "30s", "nombre": "Complex plancha"}]}, {"titulo": "Fuerza principal", "rondas": "x3", "ejercicios": [{"reps": "12", "nombre": "Global squat 1 db", "carga": "12,5 kg"}, {"reps": "12", "nombre": "Remo T", "carga": "15 kg"}, {"reps": "10", "nombre": "Press pallof rotación"}]}, {"titulo": "Movilidad y activación", "rondas": "x2", "ejercicios": [{"reps": "8", "nombre": "Movilidad isquio-psoas"}, {"reps": "20", "nombre": "Cat-dog lumbopelvis"}, {"reps": "12", "nombre": "Remo elástico + squat"}, {"reps": "20", "nombre": "Shoulder tap"}]}]}]}, {"id": "cl12", "nombre": "Jorge", "rut": "112.000.002-3", "servicio": "entrenamiento", "profesional": "Cristóbal Salvo", "plan": {"nombre": "Mesociclo 1", "objetivo": "Full body"}, "sesiones": [{"id": "ps12_0", "etiqueta": "Sesión A", "titulo": "Tren inferior + core", "hecha": true, "bloques": [{"titulo": "Movilidad y activación", "rondas": "x2", "ejercicios": [{"reps": "10", "nombre": "Movilidad cadera"}, {"reps": "10", "nombre": "Rotación aductor"}, {"reps": "10", "nombre": "Movilidad hombro bastón"}, {"reps": "10", "nombre": "Remo elástico"}]}, {"titulo": "Fuerza y estabilidad", "rondas": "x3", "ejercicios": [{"reps": "10", "nombre": "Global squat 1 db"}, {"reps": "10", "nombre": "Pull down unilateral d.c."}, {"reps": "12", "nombre": "Puente glúteo GB"}, {"reps": "10", "nombre": "Chest press"}, {"reps": "20", "nombre": "Shoulder tap"}]}]}, {"id": "ps12_1", "etiqueta": "Sesión B", "titulo": "Empuje + estabilidad", "hecha": false, "bloques": [{"titulo": "Fuerza y estabilidad", "rondas": "x3", "ejercicios": [{"reps": "10", "nombre": "Global squat 1 db"}, {"reps": "10", "nombre": "Pull down unilateral d.c."}, {"reps": "12", "nombre": "Puente glúteo GB"}, {"reps": "10", "nombre": "Chest press"}, {"reps": "20", "nombre": "Shoulder tap"}]}, {"titulo": "Movilidad y activación", "rondas": "x2", "ejercicios": [{"reps": "10", "nombre": "Movilidad cadera"}, {"reps": "10", "nombre": "Rotación aductor"}, {"reps": "10", "nombre": "Movilidad hombro bastón"}, {"reps": "10", "nombre": "Remo elástico"}]}]}]}, {"id": "cl13", "nombre": "Pablo", "rut": "113.000.003-4", "servicio": "entrenamiento", "profesional": "Cristóbal Salvo", "plan": {"nombre": "Mesociclo 1", "objetivo": "Fuerza general"}, "sesiones": [{"id": "ps13_0", "etiqueta": "Sesión A", "titulo": "Tren inferior + core", "hecha": false, "bloques": [{"titulo": "Movilidad y activación", "rondas": "x2", "ejercicios": [{"reps": "10", "nombre": "Movilidad cadera"}, {"reps": "20", "nombre": "Cat-dog"}, {"reps": "2", "nombre": "Monster walk"}]}, {"titulo": "Fuerza principal", "rondas": "x3", "ejercicios": [{"reps": "10", "nombre": "Peso muerto", "carga": "60 kg"}, {"reps": "12", "nombre": "Remo kairos", "carga": "50 lb"}, {"reps": "12", "nombre": "Press militar 2 db", "carga": "20 lb"}, {"reps": "30s", "nombre": "Plancha isométrica"}]}]}, {"id": "ps13_1", "etiqueta": "Sesión B", "titulo": "Empuje + estabilidad", "hecha": false, "bloques": [{"titulo": "Fuerza principal", "rondas": "x3", "ejercicios": [{"reps": "10", "nombre": "Peso muerto", "carga": "60 kg"}, {"reps": "12", "nombre": "Remo kairos", "carga": "50 lb"}, {"reps": "12", "nombre": "Press militar 2 db", "carga": "20 lb"}, {"reps": "30s", "nombre": "Plancha isométrica"}]}, {"titulo": "Movilidad y activación", "rondas": "x2", "ejercicios": [{"reps": "10", "nombre": "Movilidad cadera"}, {"reps": "20", "nombre": "Cat-dog"}, {"reps": "2", "nombre": "Monster walk"}]}]}]}, {"id": "cl14", "nombre": "Valentina", "rut": "114.000.004-5", "servicio": "kinesiologia", "profesional": "Luis Martinez", "plan": {"nombre": "Mesociclo 1", "objetivo": "Rodilla / correctivo"}, "sesiones": [{"id": "ps14_0", "etiqueta": "Sesión A", "titulo": "Tren inferior + core", "hecha": false, "bloques": [{"titulo": "Movilidad y activación", "rondas": "x2", "ejercicios": [{"reps": "10", "nombre": "Extensión de rodilla"}, {"reps": "12", "nombre": "Kanguro squat"}, {"reps": "2", "nombre": "Monster walk"}]}, {"titulo": "Fuerza y estabilidad", "rondas": "x2-3", "ejercicios": [{"reps": "12", "nombre": "Leg press", "carga": "40 kg"}, {"reps": "10 x lado", "nombre": "Estocada posterior"}, {"reps": "12", "nombre": "Hip abduction", "carga": "50 lb"}, {"reps": "20", "nombre": "Deadbug + elásticos"}]}]}, {"id": "ps14_1", "etiqueta": "Sesión B", "titulo": "Empuje + estabilidad", "hecha": false, "bloques": [{"titulo": "Fuerza y estabilidad", "rondas": "x2-3", "ejercicios": [{"reps": "12", "nombre": "Leg press", "carga": "40 kg"}, {"reps": "10 x lado", "nombre": "Estocada posterior"}, {"reps": "12", "nombre": "Hip abduction", "carga": "50 lb"}, {"reps": "20", "nombre": "Deadbug + elásticos"}]}, {"titulo": "Movilidad y activación", "rondas": "x2", "ejercicios": [{"reps": "10", "nombre": "Extensión de rodilla"}, {"reps": "12", "nombre": "Kanguro squat"}, {"reps": "2", "nombre": "Monster walk"}]}]}]}]};
 
 /* ---------- estado ---------- */
-let CATALOGO = [];             // todas las sesiones del día
-let enPantalla = [];           // ids proyectados
-let quitados = new Set();      // sacados a mano: el refresco no los revive
-let horaSel = 'todas';
-let filtro = 'todos', zid = null, ultimoBorrado = null, toastT = null, refT = null;
-const done = new Set();
+let MODO = 'catalogo';       // 'catalogo' | 'agenda'
+let CATALOGO = [];           // clientes, cada uno con sus sesiones
+let CAND = [];               // candidatos proyectables: {key, cliente, sesion}
+let fichas = [];             // keys proyectadas, en orden
+let quitados = new Set();
+let horaSel = 'todas', filtro = 'todos', zkey = null;
+let ultimoBorrado = null, toastT = null, refT = null, yaCargo = false;
 const CAP = CONFIG.capacidad;
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const byId = id => CATALOGO.find(c => c.id === id);
+const cand = k => CAND.find(c => c.key === k);
 const hoy = () => { const n = new Date();
-  return n.getFullYear() + '-' + String(n.getMonth()+1).padStart(2,'0') + '-' + String(n.getDate()).padStart(2,'0'); };
+  return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0'); };
 const horaAhora = () => String(new Date().getHours()).padStart(2,'0') + ':00';
 
 function estado(txt, clase){
   $('#connTxt').innerHTML = txt;
-  const d = $('#conn .dotf');
-  d.className = 'dotf' + (clase ? ' ' + clase : '');
+  $('#conn .dotf').className = 'dotf' + (clase ? ' ' + clase : '');
 }
 
-/* ============================================================
-   A) ENDPOINT DEL CMS  →  modelo interno
-   ============================================================ */
-function normalizarServicio(v){
-  return String(v || '').toLowerCase().startsWith('kin') ? 'kinesiologia' : 'entrenamiento';
-}
-function normalizarHora(v){
+/* ---------- normalizadores ---------- */
+const esKine = v => String(v || '').toLowerCase().startsWith('kin');
+function normHora(v){
   const t = String(v || '').trim();
-  let m = t.match(/^(\d{1,2}):(\d{2})\s*(a\.?\s*m\.?|p\.?\s*m\.?)?/i);
+  const m = t.match(/^(\d{1,2}):(\d{2})\s*(a\.?\s*m\.?|p\.?\s*m\.?)?/i);
   if (!m) return t;
   let h = +m[1];
   const suf = (m[3] || '').replace(/[.\s]/g,'').toLowerCase();
@@ -1262,37 +322,65 @@ function normalizarHora(v){
   if (suf === 'am' && h === 12) h = 0;
   return String(h).padStart(2,'0') + ':' + m[2];
 }
-function desdeEndpoint(json){
-  const out = [];
-  (json.sesiones || []).forEach((s, i) => {
-    const est = String(s.estado || '').toLowerCase();
-    if (est === 'cancelada' || est === 'no_asistio') return;          // fuera
-    const bloques = (s.bloques || [])
-      .map(b => ({ titulo: b.titulo || '', rondas: b.rondas || '',
-                   ejercicios: (b.ejercicios || [])
-                     .filter(e => e && e.nombre)
-                     .map(e => ({ reps: e.reps || '', nombre: e.nombre, carga: e.carga || '' })) }))
-      .filter(b => b.ejercicios.length);
-    if (!bloques.length) return;                                      // sesión vacía
-    const cl = s.cliente || {};
-    out.push({
-      id: String(s.reserva_id || cl.rut || ('s' + i)),
-      nombre: cl.nombre || 'Sin nombre',
-      rut: cl.rut || '',
-      tipo: normalizarServicio(cl.servicio),
-      hora: normalizarHora(s.hora_inicio),
-      profesional: s.profesional || '',
-      dia: (s.plan && s.plan.sesion) || '',
-      objetivo: (s.plan && s.plan.objetivo) || '',
-      bloques
-    });
-  });
-  return out;
+function limpiaBloques(bs){
+  return (bs || []).map(b => ({
+    titulo: b.titulo || '', rondas: b.rondas || '',
+    ejercicios: (b.ejercicios || []).filter(e => e && e.nombre)
+      .map(e => ({reps: e.reps || '', nombre: e.nombre, carga: e.carga || ''}))
+  })).filter(b => b.ejercicios.length);
 }
 
-/* ============================================================
-   B) CSV publicado de Google Sheets  →  modelo interno
-   ============================================================ */
+/* ---------- A) catálogo de clientes ---------- */
+function desdeCatalogo(json){
+  return (json.clientes || []).map((c, i) => ({
+    id: String(c.id ?? c.rut ?? ('c'+i)),
+    nombre: c.nombre || 'Sin nombre',
+    rut: c.rut || '',
+    tipo: esKine(c.servicio) ? 'kinesiologia' : 'entrenamiento',
+    profesional: c.profesional || '',
+    objetivo: (c.plan && c.plan.objetivo) || '',
+    plan: (c.plan && c.plan.nombre) || '',
+    hora: '',
+    sesiones: (c.sesiones || []).map((s, j) => ({
+      id: String(s.id ?? (i+'-'+j)),
+      etiqueta: s.etiqueta || s.sesion || ('Sesión ' + (j+1)),
+      titulo: s.titulo || '',
+      hecha: !!s.hecha,
+      bloques: limpiaBloques(s.bloques)
+    })).filter(s => s.bloques.length)
+  })).filter(c => c.sesiones.length);
+}
+
+/* ---------- B) sesiones agendadas del día ---------- */
+function desdeAgenda(json){
+  const porCliente = new Map();
+  (json.sesiones || []).forEach((s, i) => {
+    if (String(s.estado || '').toLowerCase() === 'cancelada') return;
+    const bl = limpiaBloques(s.bloques);
+    if (!bl.length) return;
+    const cl = s.cliente || {};
+    const id = String(s.reserva_id ?? cl.rut ?? ('s'+i));
+    const p = s.plan || {};
+    porCliente.set(id, {
+      id, nombre: cl.nombre || 'Sin nombre', rut: cl.rut || '',
+      tipo: esKine(cl.servicio) ? 'kinesiologia' : 'entrenamiento',
+      profesional: s.profesional || '',
+      objetivo: p.objetivo || '', plan: p.nombre || '',
+      hora: normHora(s.hora_inicio),
+      sesiones: [{
+        id: String(p.sesion_id ?? id),
+        etiqueta: p.sesion || '', titulo: p.sesion_titulo || '',
+        hecha: false, bloques: bl, propuesta: true
+      }].concat((p.sesiones_disponibles || [])
+        .filter(x => String(x.id) !== String(p.sesion_id))
+        .map(x => ({id: String(x.id), etiqueta: x.etiqueta || '', titulo: x.titulo || '',
+                    hecha: !!x.hecha, bloques: []})))
+    });
+  });
+  return [...porCliente.values()];
+}
+
+/* ---------- C) CSV ---------- */
 function parseCSV(txt){
   const filas = []; let f = [], cur = '', q = false;
   for (let i = 0; i < txt.length; i++){
@@ -1321,70 +409,76 @@ function desdeCSV(txt, fecha){
     if (fecha && g('fecha') && g('fecha') !== fecha) continue;
     const key = nombre.toLowerCase();
     if (!mapa.has(key)) mapa.set(key, {
-      id: 'g' + mapa.size, nombre, rut: '', tipo: normalizarServicio(g('tipo')),
-      hora: normalizarHora(g('hora')), profesional: '',
-      dia: g('dia'), objetivo: g('objetivo'), bloques: []
+      id: 'g'+mapa.size, nombre, rut: '', tipo: esKine(g('tipo')) ? 'kinesiologia' : 'entrenamiento',
+      profesional: '', objetivo: g('objetivo'), plan: '', hora: normHora(g('hora')),
+      sesiones: [{id: 'g'+mapa.size+'-s', etiqueta: g('dia') || 'Sesión', titulo: '', hecha: false, bloques: []}]
     });
-    const c = mapa.get(key);
+    const c = mapa.get(key), ses = c.sesiones[0];
     const bt = g('bloque') || 'Sesión';
-    let b = c.bloques.find(x => x.titulo === bt);
-    if (!b){ b = {titulo: bt, rondas: g('rondas'), ejercicios: []}; c.bloques.push(b); }
+    let b = ses.bloques.find(x => x.titulo === bt);
+    if (!b){ b = {titulo: bt, rondas: g('rondas'), ejercicios: []}; ses.bloques.push(b); }
     if (!b.rondas && g('rondas')) b.rondas = g('rondas');
     if (g('ejercicio')) b.ejercicios.push({reps: g('reps'), nombre: g('ejercicio'), carga: g('carga')});
   }
-  return [...mapa.values()].filter(c => c.bloques.some(b => b.ejercicios.length));
+  return [...mapa.values()].filter(c => c.sesiones[0].bloques.length);
 }
 
-/* ============================================================
-   Sincronización
-   ============================================================ */
-function cacheGuardar(lista){
-  try { localStorage.setItem('pf_cache', JSON.stringify({fecha: CONFIG.fecha || hoy(), lista})); } catch(e){}
-}
-function cacheLeer(){
-  try {
-    const c = JSON.parse(localStorage.getItem('pf_cache') || 'null');
-    if (c && c.fecha === (CONFIG.fecha || hoy())) return c.lista;
-  } catch(e){}
-  return null;
+/* ---------- candidatos ---------- */
+function armarCandidatos(){
+  CAND = [];
+  CATALOGO.forEach(c => c.sesiones.forEach(s => {
+    if (s.bloques.length) CAND.push({key: c.id + '|' + s.id, cliente: c, sesion: s});
+  }));
 }
 
+/* ---------- caché ---------- */
+function cacheGuardar(){ try{
+  localStorage.setItem('pf_cache', JSON.stringify({f: CONFIG.fecha || hoy(), m: MODO, d: CATALOGO}));
+}catch(e){} }
+function cacheLeer(){ try{
+  const c = JSON.parse(localStorage.getItem('pf_cache') || 'null');
+  if (c && c.f === (CONFIG.fecha || hoy())) { MODO = c.m || 'catalogo'; return c.d; }
+}catch(e){} return null; }
+
+/* ---------- sincronizar ---------- */
 async function sincronizar(silencioso){
   const fecha = CONFIG.fecha || hoy();
+  const url = CONFIG.endpointAgenda || CONFIG.endpoint || CONFIG.csv;
 
-  if (!CONFIG.endpoint && !CONFIG.csv){
-    CATALOGO = DEMO.clientes.map(c => ({...c, rut: '', profesional: ''}));
+  if (!url){
+    MODO = 'catalogo';
+    CATALOGO = desdeCatalogo(DEMO);
+    armarCandidatos();
     estado('Datos de <b>demostración</b> — configura <b>CONFIG.endpoint</b>', 'off');
-    primeraCarga();
-    return;
+    primeraCarga(); return;
   }
 
   if (!silencioso) estado('Consultando…', 'off');
   try {
-    let lista;
-    if (CONFIG.endpoint){
-      const sep = CONFIG.endpoint.includes('?') ? '&' : '?';
-      const url = CONFIG.endpoint + sep + 'fecha=' + encodeURIComponent(fecha) + '&_=' + Date.now();
-      const r = await fetch(url, {cache: 'no-store'});
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      lista = desdeEndpoint(await r.json());
+    const sep = url.includes('?') ? '&' : '?';
+    const r = await fetch(url + sep + 'fecha=' + encodeURIComponent(fecha) + '&_=' + Date.now(),
+                          {cache: 'no-store'});
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+
+    if (CONFIG.csv && !CONFIG.endpoint && !CONFIG.endpointAgenda){
+      MODO = 'agenda'; CATALOGO = desdeCSV(await r.text(), fecha);
     } else {
-      const sep = CONFIG.csv.includes('?') ? '&' : '?';
-      const r = await fetch(CONFIG.csv + sep + '_=' + Date.now(), {cache: 'no-store'});
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      lista = desdeCSV(await r.text(), fecha);
+      const j = await r.json();
+      // el formato de la respuesta decide el modo
+      if (Array.isArray(j.clientes)) { MODO = 'catalogo'; CATALOGO = desdeCatalogo(j); }
+      else                           { MODO = 'agenda';   CATALOGO = desdeAgenda(j); }
     }
 
-    CATALOGO = lista;
-    cacheGuardar(lista);
-    enPantalla = enPantalla.filter(id => byId(id));
+    armarCandidatos();
+    cacheGuardar();
+    fichas = fichas.filter(k => cand(k));
     const hh = new Date().toLocaleTimeString('es-CL', {hour:'2-digit', minute:'2-digit'});
-    estado(`<b>CMS</b> · ${lista.length} sesiones · ${hh}`, '');
+    estado(`<b>CMS</b> · ${CATALOGO.length} ${MODO === 'catalogo' ? 'clientes' : 'sesiones'} · ${hh}`, '');
     primeraCarga();
   } catch (e) {
-    const cache = cacheLeer();
-    if (cache && !CATALOGO.length){
-      CATALOGO = cache;
+    const c = cacheLeer();
+    if (c && !CATALOGO.length){
+      CATALOGO = c; armarCandidatos();
       estado('Sin conexión — mostrando <b>última copia</b>', 'err');
       primeraCarga();
     } else {
@@ -1394,248 +488,286 @@ async function sincronizar(silencioso){
   }
 }
 
-let yaCargo = false;
 function primeraCarga(){
   if (!yaCargo){
     yaCargo = true;
-    const h = horaAhora();
-    const hayEstaHora = CATALOGO.some(c => c.hora === h);
-    horaSel = (CONFIG.cargarHoraActual && hayEstaHora) ? h : 'todas';
-    enPantalla = deLaHora().slice(0, CAP).map(c => c.id);
-  } else if (CONFIG.cargarHoraActual){
-    // el refresco suma los que aparecieron nuevos, sin revivir los sacados a mano
+    if (MODO === 'agenda'){
+      const h = horaAhora();
+      horaSel = (CONFIG.cargarHoraActual && CATALOGO.some(c => c.hora === h)) ? h : 'todas';
+      fichas = deLaHora().slice(0, CAP).map(c => c.id + '|' + c.sesiones[0].id);
+    } else {
+      fichas = [];                       // en catálogo la pantalla arranca vacía
+    }
+  } else if (MODO === 'agenda' && CONFIG.cargarHoraActual){
     deLaHora().forEach(c => {
-      if (enPantalla.length < CAP && !enPantalla.includes(c.id) && !quitados.has(c.id))
-        enPantalla.push(c.id);
+      const k = c.id + '|' + c.sesiones[0].id;
+      if (fichas.length < CAP && !fichas.includes(k) && !quitados.has(k)) fichas.push(k);
     });
   }
-  pintarHoras();
-  render();
-  listar();
+  pintarCabecera(); pintarHoras(); render(); listar();
 }
 function deLaHora(){
   return CATALOGO.filter(c => horaSel === 'todas' || c.hora === horaSel);
 }
+
+/* ---------- cabecera ---------- */
+function pintarCabecera(){
+  $('#slotHour').textContent = (MODO === 'agenda' && horaSel !== 'todas') ? horaSel : 'HOY';
+  $('#slotDate').textContent = new Date((CONFIG.fecha || hoy()) + 'T12:00:00')
+    .toLocaleDateString('es-CL', {weekday:'long', day:'numeric', month:'long'});
+}
 function pintarHoras(){
-  const horas = [...new Set(CATALOGO.map(c => c.hora).filter(Boolean))].sort();
+  const horas = MODO === 'agenda'
+    ? [...new Set(CATALOGO.map(c => c.hora).filter(Boolean))].sort() : [];
+  if (!horas.length){ $('#horas').innerHTML = ''; $('#horas').style.display = 'none'; return; }
+  $('#horas').style.display = '';
   $('#horas').innerHTML =
     `<button data-h="todas" class="${horaSel==='todas'?'on':''}">Todas<i>${CATALOGO.length}</i></button>` +
     horas.map(h => `<button data-h="${h}" class="${horaSel===h?'on':''}">${h}<i>${
       CATALOGO.filter(c=>c.hora===h).length}</i></button>`).join('');
 }
 function cambiarHora(h){
-  horaSel = h;
-  quitados.clear();
-  enPantalla = deLaHora().slice(0, CAP).map(c => c.id);
-  pintarHoras(); render(); listar();
-}
-function programarRefresco(){
-  if (refT) clearInterval(refT);
-  if (CONFIG.refrescoSegundos > 0 && (CONFIG.endpoint || CONFIG.csv))
-    refT = setInterval(() => sincronizar(true), CONFIG.refrescoSegundos * 1000);
+  horaSel = h; quitados.clear();
+  fichas = deLaHora().slice(0, CAP).map(c => c.id + '|' + c.sesiones[0].id);
+  pintarCabecera(); pintarHoras(); render(); listar();
 }
 
 /* ---------- markup ---------- */
-function blocksHTML(c){
-  return '<div class="blocks">'+c.bloques.map(b=>`
+function blocksHTML(ses){
+  return '<div class="blocks">' + ses.bloques.map(b => `
     <div class="blk">
       <div class="blk-head">
         <span class="blk-title">${esc(b.titulo)}</span><span class="blk-line"></span>
         ${b.rondas?`<span class="rounds">${esc(b.rondas)}</span>`:''}
       </div>
-      <ul>${b.ejercicios.map(e=>`<li><span class="reps">${esc(e.reps||'·')}</span><span class="ex">${esc(e.nombre)}</span>${e.carga?`<span class="load">${esc(e.carga)}</span>`:''}</li>`).join('')}</ul>
-    </div>`).join('')+'</div>';
+      <ul>${b.ejercicios.map(e => `<li><span class="reps">${esc(e.reps||'·')}</span><span class="ex">${esc(e.nombre)}</span>${e.carga?`<span class="load">${esc(e.carga)}</span>`:''}</li>`).join('')}</ul>
+    </div>`).join('') + '</div>';
 }
-function headHTML(c,conX){
+function headHTML(c, ses, key){
   return `<div class="c-head">
     <div class="c-id">
       <div class="c-name">${esc(c.nombre)}</div>
       <div class="c-sub">
         <span class="tag serv">${c.tipo==='kinesiologia'?'Kinesio':'Entren.'}</span>
-        ${c.dia?`<span class="tag">${esc(c.dia)}</span>`:''}
-        ${c.objetivo?`<span class="tag">${esc(c.objetivo)}</span>`:''}
+        ${ses.etiqueta?`<span class="tag">${esc(ses.etiqueta)}</span>`:''}
+        ${ses.titulo?`<span class="tag">${esc(ses.titulo)}</span>`:(c.objetivo?`<span class="tag">${esc(c.objetivo)}</span>`:'')}
+        ${c.hora?`<span class="tag">${esc(c.hora)}</span>`:''}
       </div>
     </div>
-    ${conX?`<button class="c-x" data-x="${c.id}" title="Sacar de la pantalla">✕</button>`:''}
+    ${key?`<button class="c-x" data-x="${esc(key)}" title="Sacar de la pantalla">✕</button>`:''}
   </div>`;
 }
-function cardHTML(c){
-  return `<article class="card${c.tipo==='kinesiologia'?' kin':''}${done.has(c.id)?' done':''}" data-id="${c.id}">
-    ${headHTML(c,true)}<div class="c-body">${blocksHTML(c)}</div></article>`;
+function cardHTML(k){
+  const c = cand(k); if (!c) return '';
+  return `<article class="card${c.cliente.tipo==='kinesiologia'?' kin':''}" data-k="${esc(k)}">
+    ${headHTML(c.cliente, c.sesion, k)}<div class="c-body">${blocksHTML(c.sesion)}</div></article>`;
 }
 
 /* ---------- columnas ---------- */
 function bestCols(n){
-  if(n<=0) return 4;
-  let best=4,bs=-1;
-  for(let k=2;k<=6;k++){
-    const rows=Math.ceil(n/k), w=innerWidth/k, h=(innerHeight-(document.body.classList.contains('zen')?20:64))/rows;
-    const s=Math.min(w/300,h/210)-Math.abs(k*rows-n)*0.03;
-    if(s>bs){bs=s;best=k;}
+  if (n <= 0) return 4;
+  let best = 4, bs = -1;
+  for (let k = 2; k <= 6; k++){
+    const rows = Math.ceil(n/k), w = innerWidth/k,
+          h = (innerHeight - (document.body.classList.contains('zen') ? 20 : 64)) / rows;
+    const s = Math.min(w/300, h/210) - Math.abs(k*rows - n) * 0.03;
+    if (s > bs){ bs = s; best = k; }
   }
   return best;
 }
 
-/* ---------- empaquetado tetris + auto-ajuste ---------- */
-const ROW=6, GAP=8, FMIN=8, FMAX=19;
+/* ---------- empaquetado tetris ---------- */
+const ROW = 6, GAP = 8, FMIN = 7, FMAX = 19;
 function altoNatural(card){
-  const head=card.querySelector('.c-head'), body=card.querySelector('.c-body');
-  const blocks=body.querySelector('.blocks');
-  const cs=getComputedStyle(body);
-  return head.offsetHeight + blocks.offsetHeight
+  const head = card.querySelector('.c-head'), body = card.querySelector('.c-body');
+  const cs = getComputedStyle(body);
+  return head.offsetHeight + body.querySelector('.blocks').offsetHeight
        + parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom) + 4;
 }
+function fits(el){ return el.scrollHeight <= el.clientHeight + 1; }
 function aplicar(fs){
-  const board=$('#board');
-  board.querySelectorAll('.card').forEach(c=>c.querySelector('.c-body').style.fontSize=fs.toFixed(2)+'px');
-  board.offsetHeight;                                    // fuerza reflow
-  board.querySelectorAll('.card').forEach(c=>{
-    const n=Math.max(6, Math.ceil((altoNatural(c)+GAP)/(ROW+GAP)));
-    c.style.gridRow='span '+n;
+  const board = $('#board');
+  board.querySelectorAll('.card').forEach(c => c.querySelector('.c-body').style.fontSize = fs.toFixed(2)+'px');
+  board.offsetHeight;
+  board.querySelectorAll('.card').forEach(c => {
+    c.style.gridRow = 'span ' + Math.max(6, Math.ceil((altoNatural(c)+GAP)/(ROW+GAP)));
   });
-  const add=board.querySelector('.slot-add');
-  if(add) add.style.gridRow='span '+Math.ceil((78+GAP)/(ROW+GAP));
-  return board.scrollHeight<=board.clientHeight+1;
+  const add = board.querySelector('.slot-add');
+  if (add) add.style.gridRow = 'span ' + Math.ceil((78+GAP)/(ROW+GAP));
+  return board.scrollHeight <= board.clientHeight + 1;
 }
 function empaquetar(){
-  const board=$('#board');
+  const board = $('#board');
   board.classList.remove('scroll');
-  if(aplicar(FMAX)) return;                              // entra al máximo
-  let lo=FMIN, hi=FMAX, ok=null;
-  for(let i=0;i<14;i++){
-    const mid=(lo+hi)/2;
-    if(aplicar(mid)){ ok=mid; lo=mid; } else hi=mid;
+  if (!board.querySelector('.card')) return;
+  if (aplicar(FMAX)) return;
+  let lo = FMIN, hi = FMAX, ok = null;
+  for (let i = 0; i < 14; i++){
+    const mid = (lo+hi)/2;
+    if (aplicar(mid)){ ok = mid; lo = mid; } else hi = mid;
   }
-  if(ok===null){ aplicar(FMIN); board.classList.add('scroll'); }
+  if (ok === null){ aplicar(FMIN); board.classList.add('scroll'); }
   else aplicar(ok);
 }
 
 /* ---------- render ---------- */
 function render(){
-  const vis=enPantalla.map(byId).filter(Boolean);
-  const board=$('#board');
-  board.style.setProperty('--cols', bestCols(vis.length + (vis.length<CAP?1:0)));
+  const board = $('#board');
+  const vis = fichas.filter(k => cand(k));
+  board.style.setProperty('--cols', bestCols(vis.length + (vis.length < CAP ? 1 : 0)));
   board.innerHTML = vis.map(cardHTML).join('') +
-    (vis.length<CAP ? `<button class="slot-add" id="slotAdd"><span class="plus">＋</span><span>Agregar sesión</span></button>` : '');
-  $('#nEnt').textContent=vis.filter(c=>c.tipo!=='kinesiologia').length;
-  $('#nKin').textContent=vis.filter(c=>c.tipo==='kinesiologia').length;
+    (vis.length < CAP
+      ? `<button class="slot-add" id="slotAdd"><span class="plus">＋</span><span>${
+          vis.length ? 'Agregar sesión' : 'Buscar la primera sesión'}</span></button>`
+      : '');
+  const cs = vis.map(k => cand(k).cliente);
+  $('#nEnt').textContent = cs.filter(c => c.tipo !== 'kinesiologia').length;
+  $('#nKin').textContent = cs.filter(c => c.tipo === 'kinesiologia').length;
   requestAnimationFrame(empaquetar);
 }
 
 /* ---------- quitar / agregar ---------- */
-function quitar(id){
-  const i=enPantalla.indexOf(id); if(i<0) return;
-  const c=byId(id);
-  const el=document.querySelector(`.card[data-id="${id}"]`);
-  ultimoBorrado={id,pos:i}; quitados.add(id);
-  if(el){ el.classList.add('saliendo'); }
-  setTimeout(()=>{ enPantalla.splice(i,1); render(); },160);
-  toast(`<b>${esc(c?c.nombre:'')}</b> salió de la pantalla`);
+function quitar(k){
+  const i = fichas.indexOf(k); if (i < 0) return;
+  const c = cand(k);
+  const el = document.querySelector(`.card[data-k="${CSS.escape(k)}"]`);
+  ultimoBorrado = {k, pos: i}; quitados.add(k);
+  if (el) el.classList.add('saliendo');
+  setTimeout(() => { fichas.splice(i,1); render(); listar(); }, 160);
+  toast(`<b>${esc(c ? c.cliente.nombre : '')}</b> salió de la pantalla`);
 }
-function agregar(id){
-  if(enPantalla.includes(id)) return;
-  quitados.delete(id);
-  if(enPantalla.length>=CAP){ toast(`Pantalla llena (${CAP})`,true); return; }
-  enPantalla.push(id); render(); listar();
+function agregar(k){
+  if (fichas.includes(k)) return;
+  const c = cand(k); if (!c) return;
+  // ¿esta persona ya está proyectada? entonces esto es un CAMBIO de sesión,
+  // que conserva su lugar y no cuenta contra la capacidad
+  const prev = fichas.findIndex(x => cand(x) && cand(x).cliente.id === c.cliente.id);
+  if (prev < 0 && fichas.length >= CAP){ toast(`Pantalla llena (${CAP})`, true); return; }
+  quitados.delete(k);
+  if (prev >= 0) fichas[prev] = k;
+  else           fichas.push(k);
+  render(); listar();
 }
-function toast(html,sinUndo){
-  $('#toastTxt').innerHTML=html;
-  $('#toastBtn').style.display=sinUndo?'none':'';
+function cambiarSesion(k){                 // cambia la sesión de una ficha ya proyectada
+  const c = cand(k); if (!c) return;
+  agregar(k); zclose();
+}
+function toast(html, sinUndo){
+  $('#toastTxt').innerHTML = html;
+  $('#toastBtn').style.display = sinUndo ? 'none' : '';
   $('#toast').classList.add('on');
-  clearTimeout(toastT); toastT=setTimeout(()=>$('#toast').classList.remove('on'), 6000);
+  clearTimeout(toastT); toastT = setTimeout(() => $('#toast').classList.remove('on'), 6000);
 }
-$('#toastBtn').onclick=()=>{
-  if(!ultimoBorrado) return;
-  enPantalla.splice(Math.min(ultimoBorrado.pos,enPantalla.length),0,ultimoBorrado.id);
-  quitados.delete(ultimoBorrado.id);
-  ultimoBorrado=null; $('#toast').classList.remove('on'); render();
+$('#toastBtn').onclick = () => {
+  if (!ultimoBorrado) return;
+  fichas.splice(Math.min(ultimoBorrado.pos, fichas.length), 0, ultimoBorrado.k);
+  quitados.delete(ultimoBorrado.k);
+  ultimoBorrado = null; $('#toast').classList.remove('on'); render(); listar();
 };
 
 /* ---------- buscador ---------- */
 function listar(){
-  const q=$('#q').value.trim().toLowerCase();
-  const libres=CATALOGO.filter(c=>!enPantalla.includes(c.id))
-    .filter(c=>filtro==='todos'||c.tipo===filtro)
-    .filter(c=>!q||c.nombre.toLowerCase().includes(q)||(c.objetivo||'').toLowerCase().includes(q))
-    .sort((a,b)=>(a.hora||'').localeCompare(b.hora||'')||a.nombre.localeCompare(b.nombre));
-  $('#shList').innerHTML = libres.length ? libres.map(c=>`
-    <div class="row ${c.tipo==='kinesiologia'?'kin':'ent'}" data-add="${c.id}">
+  const q = $('#q').value.trim().toLowerCase();
+  const puestos = new Set(fichas.map(k => cand(k) && cand(k).cliente.id));
+  const libres = CATALOGO
+    .filter(c => !puestos.has(c.id))
+    .filter(c => filtro === 'todos' || c.tipo === filtro)
+    .filter(c => horaSel === 'todas' || !c.hora || c.hora === horaSel)
+    .filter(c => !q || c.nombre.toLowerCase().includes(q)
+              || (c.objetivo||'').toLowerCase().includes(q)
+              || (c.rut||'').includes(q))
+    .sort((a,b) => (a.hora||'').localeCompare(b.hora||'') || a.nombre.localeCompare(b.nombre));
+
+  $('#shList').innerHTML = libres.length ? libres.map(c => {
+    const ses = c.sesiones.filter(s => s.bloques.length);
+    return `<div class="row ${c.tipo==='kinesiologia'?'kin':'ent'}">
       <span class="pill"></span>
-      <span class="hr">${esc(c.hora||'')}</span>
+      ${c.hora?`<span class="hr">${esc(c.hora)}</span>`:''}
       <span class="nm">${esc(c.nombre)}</span>
-      <span class="mt">${c.tipo==='kinesiologia'?'Kinesiología':'Entrenamiento'}${c.objetivo?' · '+esc(c.objetivo):''}${c.dia?' · '+esc(c.dia):''}</span>
-      <span class="go">Proyectar</span>
-    </div>`).join('') : `<div class="vacio">No hay sesiones que coincidan.</div>`;
+      <span class="mt">${c.tipo==='kinesiologia'?'Kinesiología':'Entrenamiento'}${
+        c.plan?' · '+esc(c.plan):''}${c.profesional?' · '+esc(c.profesional):''}</span>
+      <span class="ses">${ses.map(s =>
+        `<button class="go${s.hecha?' hecha':''}" data-add="${esc(c.id+'|'+s.id)}"
+           title="${esc(s.titulo||'')}${s.hecha?' · ya realizada':''}">${esc(s.etiqueta||'Proyectar')}</button>`
+      ).join('')}</span>
+    </div>`;
+  }).join('') : `<div class="vacio">No hay clientes que coincidan.</div>`;
 }
 function abrirBuscador(){
-  $('#shSub').textContent = `${enPantalla.length} de ${CAP} fichas en pantalla · ${CATALOGO.length} sesiones del día`
-    + (horaSel !== 'todas' ? ` · viendo el bloque de las ${horaSel}` : '');
+  $('#shSub').textContent =
+    `${fichas.length} de ${CAP} fichas en pantalla · ${CATALOGO.length} ${MODO==='catalogo'?'clientes con plan':'sesiones del día'}`
+    + (MODO==='agenda' && horaSel!=='todas' ? ` · bloque de las ${horaSel}` : '');
   $('#fuenteTxt').innerHTML = $('#connTxt').innerHTML;
   $('#dotf').className = $('#conn .dotf').className;
-  $('#buscador').classList.add('on'); $('#q').value=''; listar(); setTimeout(()=>$('#q').focus(),40);
+  $('#buscador').classList.add('on'); $('#q').value = ''; listar();
+  setTimeout(() => $('#q').focus(), 40);
 }
 function cerrarBuscador(){ $('#buscador').classList.remove('on'); }
 
-/* ---------- zoom ---------- */
-function zopen(id){
-  const c=byId(id); if(!c) return; zid=id;
-  const z=$('#zcard');
-  z.className='zcard'+(c.tipo==='kinesiologia'?' kin':'');
-  z.style.setProperty('--acc', c.tipo==='kinesiologia'?'var(--kin)':'var(--ent)');
-  z.style.setProperty('--acc-txt', c.tipo==='kinesiologia'?'var(--kin-txt)':'var(--ent-txt)');
-  z.innerHTML=headHTML(c,false)+`<div class="c-body">${blocksHTML(c)}</div>`;
-  $('#zoom').classList.add('on'); $('#zclose').style.display='block';
+/* ---------- zoom, con cambio de sesión ---------- */
+function zopen(k){
+  const c = cand(k); if (!c) return; zkey = k;
+  const z = $('#zcard');
+  const kin = c.cliente.tipo === 'kinesiologia';
+  z.style.setProperty('--acc', kin ? 'var(--kin)' : 'var(--ent)');
+  z.style.setProperty('--acc-txt', kin ? 'var(--kin-txt)' : 'var(--ent-txt)');
+  const otras = c.cliente.sesiones.filter(s => s.bloques.length && s.id !== c.sesion.id);
+  z.innerHTML = headHTML(c.cliente, c.sesion, null)
+    + (otras.length ? `<div class="zswitch"><span>Cambiar sesión:</span>${
+        otras.map(s => `<button data-sw="${esc(c.cliente.id+'|'+s.id)}">${esc(s.etiqueta)}${
+          s.titulo?` · ${esc(s.titulo)}`:''}</button>`).join('')}</div>` : '')
+    + `<div class="c-body">${blocksHTML(c.sesion)}</div>`;
+  $('#zoom').classList.add('on'); $('#zclose').style.display = 'block';
 }
-function zclose(){ $('#zoom').classList.remove('on'); $('#zclose').style.display='none'; zid=null; }
+function zclose(){ $('#zoom').classList.remove('on'); $('#zclose').style.display = 'none'; zkey = null; }
 
 /* ---------- eventos ---------- */
-$('#board').addEventListener('click',e=>{
-  const x=e.target.closest('[data-x]');
-  if(x){ e.stopPropagation(); quitar(x.dataset.x); return; }
-  if(e.target.closest('#slotAdd')) return abrirBuscador();
-  const card=e.target.closest('.card'); if(card) zopen(card.dataset.id);
+$('#board').addEventListener('click', e => {
+  const x = e.target.closest('[data-x]');
+  if (x){ e.stopPropagation(); quitar(x.dataset.x); return; }
+  if (e.target.closest('#slotAdd')) return abrirBuscador();
+  const card = e.target.closest('.card'); if (card) zopen(card.dataset.k);
 });
-$('#board').addEventListener('dblclick',e=>{
-  const card=e.target.closest('.card'); if(!card) return;
-  const id=card.dataset.id; done.has(id)?done.delete(id):done.add(id); render();
+$('#shList').addEventListener('click', e => {
+  const r = e.target.closest('[data-add]');
+  if (r){ agregar(r.dataset.add); if (fichas.length >= CAP) cerrarBuscador(); }
 });
-$('#shList').addEventListener('click',e=>{
-  const r=e.target.closest('[data-add]'); if(r){ agregar(r.dataset.add); }
+$('#zcard').addEventListener('click', e => {
+  const b = e.target.closest('[data-sw]'); if (b) cambiarSesion(b.dataset.sw);
 });
-$('#q').addEventListener('input',listar);
-$('#filtros').addEventListener('click',e=>{
-  const b=e.target.closest('button'); if(!b)return;
-  filtro=b.dataset.f;
-  [...$('#filtros').children].forEach(x=>x.classList.toggle('on',x===b));
+$('#q').addEventListener('input', listar);
+$('#filtros').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  filtro = b.dataset.f;
+  [...$('#filtros').children].forEach(x => x.classList.toggle('on', x === b));
   listar();
 });
-$('#btnAdd').onclick=abrirBuscador;
-$('#btnSync').onclick=()=>sincronizar();
-$('#horas').addEventListener('click',e=>{const b=e.target.closest('button'); if(b)cambiarHora(b.dataset.h);});
-$('#buscador').addEventListener('click',e=>{ if(e.target.id==='buscador') cerrarBuscador(); });
-$('#zoom').addEventListener('click',e=>{ if(e.target.id==='zoom') zclose(); });
-$('#zclose').onclick=zclose;
-$('#btnAll').onclick=()=>{ quitados.clear(); enPantalla=deLaHora().slice(0,CAP).map(c=>c.id); done.clear(); render(); listar(); };
+$('#horas').addEventListener('click', e => { const b = e.target.closest('button'); if (b) cambiarHora(b.dataset.h); });
+$('#btnAdd').onclick = abrirBuscador;
+$('#btnSync').onclick = () => sincronizar();
+$('#buscador').addEventListener('click', e => { if (e.target.id === 'buscador') cerrarBuscador(); });
+$('#zoom').addEventListener('click', e => { if (e.target.id === 'zoom') zclose(); });
+$('#zclose').onclick = zclose;
+$('#btnAll').onclick = () => { fichas = []; quitados.clear(); render(); listar(); };
 function zen(){ document.body.classList.toggle('zen'); requestAnimationFrame(render); }
-$('#btnZen').onclick=zen; $('#zenout').onclick=zen;
+$('#btnZen').onclick = zen; $('#zenout').onclick = zen;
 
-document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'){ zclose(); cerrarBuscador(); return; }
-  if(document.activeElement===$('#q')) return;
-  if(e.key==='a'||e.key==='A'||e.key==='+') { e.preventDefault(); abrirBuscador(); }
-  if(e.key==='z'||e.key==='Z') zen();
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape'){ zclose(); cerrarBuscador(); return; }
+  if (document.activeElement === $('#q')) return;
+  if (e.key === 'a' || e.key === 'A' || e.key === '+'){ e.preventDefault(); abrirBuscador(); }
+  if (e.key === 'z' || e.key === 'Z') zen();
 });
-let rz; addEventListener('resize',()=>{ clearTimeout(rz); rz=setTimeout(render,120); });
+let rz; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(render, 120); });
 
-/* ---------- cabecera ---------- */
-function reloj(){const n=new Date();$('#clock').textContent=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');}
-setInterval(reloj,1000); reloj();
-$('#slotHour').textContent=DEMO.bloque_horario||'07:00';
-$('#slotDate').textContent=new Date((DEMO.fecha||'2026-08-17')+'T12:00:00').toLocaleDateString('es-CL',{weekday:'long',day:'numeric',month:'long'});
+/* ---------- reloj ---------- */
+function reloj(){ const n = new Date();
+  $('#clock').textContent = String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0'); }
+setInterval(reloj, 1000); reloj();
+pintarCabecera();
 
 render();
 sincronizar(false);
-programarRefresco();
 
 /* ---------- app instalable ---------- */
 if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
@@ -1647,6 +779,8 @@ addEventListener('beforeinstallprompt', e => {
   b.onclick = async () => { instalador.prompt(); await instalador.userChoice; b.remove(); };
   document.querySelector('#btnZen').before(b);
 });
+if (CONFIG.refrescoSegundos > 0 && (CONFIG.endpoint || CONFIG.endpointAgenda || CONFIG.csv))
+  refT = setInterval(() => sincronizar(true), CONFIG.refrescoSegundos * 1000);
 </script>
 </body>
 </html>
