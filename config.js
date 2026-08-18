@@ -27,7 +27,7 @@ window.PF_CONFIG = {
   // Mientras esté en false, en las fichas kinésicas no aparece el botón
   // "Guardar también en el CMS" (el CMS todavía responde 409).
   // Se pone en true el mismo día en que el CMS quede listo.
-  guardarKine: false,
+  guardarKine: true,
 
   // Cada cuántos segundos se vuelve a preguntar al CMS. 0 = nunca.
   refrescoSegundos: 300
