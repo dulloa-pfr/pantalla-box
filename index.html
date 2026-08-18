@@ -596,25 +596,58 @@ function aplicar(fs){
   if (add) add.style.gridRow = 'span ' + Math.ceil((78+GAP)/(ROW+GAP));
   return board.scrollHeight <= board.clientHeight + 1;
 }
-function empaquetar(){
-  const board = $('#board');
-  board.classList.remove('scroll');
-  if (!board.querySelector('.card')) return;
-  if (aplicar(FMAX)) return;
+function mejorTamano(){                       // mayor letra que entra, o null
+  if (aplicar(FMAX)) return FMAX;
   let lo = FMIN, hi = FMAX, ok = null;
-  for (let i = 0; i < 14; i++){
+  for (let i = 0; i < 12; i++){
     const mid = (lo+hi)/2;
     if (aplicar(mid)){ ok = mid; lo = mid; } else hi = mid;
   }
-  if (ok === null){ aplicar(FMIN); board.classList.add('scroll'); }
-  else aplicar(ok);
+  return ok;
+}
+function empaquetar(){
+  const board = $('#board');
+  board.classList.remove('scroll');
+  const n = board.querySelectorAll('.card').length;
+  if (!n) return;
+
+  // prueba varios repartos de columnas y se queda con el que da la letra más grande
+  let mejorCols = null, mejorFs = -1;
+  for (let cols = Math.max(2, Math.min(3, n)); cols <= Math.min(7, Math.max(3, n)); cols++){
+    board.style.setProperty('--cols', cols);
+    const fs = mejorTamano();
+    if (fs !== null && fs > mejorFs + 0.15){ mejorFs = fs; mejorCols = cols; }
+  }
+  if (mejorCols === null){                    // no entra ni al mínimo: se deja scroll
+    board.style.setProperty('--cols', bestCols(n));
+    aplicar(FMIN); board.classList.add('scroll');
+    crecerCadaUna(FMIN); return;
+  }
+  board.style.setProperty('--cols', mejorCols);
+  aplicar(mejorFs);
+  crecerCadaUna(mejorFs);
+}
+
+/* Una vez fijado el alto de cada ficha, la más cargada ya no le impone su
+   tamaño de letra a las demás: cada una crece hasta llenar SU propio espacio. */
+function crecerCadaUna(base){
+  $('#board').querySelectorAll('.card').forEach(card => {
+    const body = card.querySelector('.c-body');
+    if (!fits(body)) return;
+    let lo = base, hi = FMAX, mejor = base;
+    for (let i = 0; i < 10; i++){
+      const mid = (lo + hi) / 2;
+      body.style.fontSize = mid.toFixed(2) + 'px';
+      if (fits(body)){ mejor = mid; lo = mid; } else hi = mid;
+    }
+    body.style.fontSize = mejor.toFixed(2) + 'px';
+  });
 }
 
 /* ---------- render ---------- */
 function render(){
   const board = $('#board');
   const vis = fichas.filter(k => cand(k));
-  board.style.setProperty('--cols', bestCols(vis.length + (vis.length < CAP ? 1 : 0)));
   board.innerHTML = vis.map(cardHTML).join('') +
     (vis.length < CAP
       ? `<button class="slot-add" id="slotAdd"><span class="plus">＋</span><span>${
