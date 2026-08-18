@@ -102,6 +102,7 @@
        color:var(--acc-txt);border:1px solid color-mix(in srgb,var(--acc) 45%,transparent)}
   .tag.serv{background:var(--acc);color:#12120F;border-color:var(--acc)}
   .tag.prueba{background:#F2A007;color:#12120F;border-color:#F2A007}
+  .tag.dia{background:var(--acc);color:#12120F;border-color:var(--acc)}
   .tag.edit{background:transparent;color:#F2A007;border-color:#F2A007}
 
   .c-acc{flex:0 0 auto;display:flex;gap:4px}
@@ -110,6 +111,10 @@
        cursor:pointer;display:grid;place-items:center;transition:.14s}
   .c-x:hover{background:#C0182B;border-color:#C0182B;color:#fff}
   .c-ed:hover{background:var(--lima);border-color:var(--lima);color:#12120F}
+  .c-tv{width:auto;padding:0 6px;font-size:9px;letter-spacing:.5px;
+        border:1px solid var(--line);border-radius:6px;background:#191917;color:var(--txt-2);
+        height:22px;cursor:pointer;display:grid;place-items:center;font-weight:900;transition:.14s}
+  .c-tv:hover{background:var(--lima);border-color:var(--lima);color:#12120F}
 
   .c-body{flex:1;min-height:0;overflow:hidden;padding:8px 11px 10px;font-size:13px}
   .blocks{display:flex;flex-direction:column;gap:.68em}
@@ -237,6 +242,7 @@
   #toast button{background:var(--lima);color:#12120F;border:0;padding:7px 13px;border-radius:6px;
                 font-size:12px;font-weight:900;cursor:pointer}
 
+  body.tv .c-tv{display:none !important}
   .hint{position:absolute;bottom:8px;left:15px;font-size:10.5px;color:var(--txt-3);pointer-events:none}
   .hint b{color:var(--txt-2)}
 
@@ -269,14 +275,16 @@
     <div class="conn" id="conn" title="Origen de los datos"><span class="dotf off"></span><span id="connTxt">—</span></div>
     <button class="btn primary" id="btnAdd">＋ Buscar sesión <kbd>A</kbd></button>
     <button class="btn" id="btnPrueba">✎ Clase de prueba <kbd>N</kbd></button>
+    <button class="btn" id="btnNTV" title="Repartir las fichas en uno o dos televisores">▣ Un televisor</button>
     <button class="btn tv" id="btnTV">▣ Abrir pantalla del box <kbd>P</kbd></button>
+    <button class="btn tv" id="btnTV2" style="display:none">▣ Abrir TV 2</button>
     <button class="btn" id="btnAll">Vaciar</button>
     <div class="clock" id="clock">--:--</div>
   </header>
   <main>
     <div class="board" id="board"></div>
     <aside class="board" id="boardKine"></aside>
-    <div class="hint">Clic en una ficha la agranda · <b>✎</b> edita la planificación · <b>✕</b> la saca y el resto se reacomoda · lo que buscas aquí <b>no se ve en el TV</b></div>
+    <div class="hint">Clic en una ficha la agranda · <b>✎</b> edita la planificación · <b>✕</b> la saca y el resto se reacomoda · con dos televisores, <b>TV 1</b>/<b>TV 2</b> pasa a la persona de una pantalla a la otra · lo que buscas aquí <b>no se ve en el TV</b></div>
   </main>
 </div>
 
@@ -386,7 +394,9 @@ const DEMO = {"clientes": [{"id": "cl0", "nombre": "Ivonne", "rut": "10.000.000-
    index.html?tv=1   → PROYECCIÓN  (el TV del box: solo fichas)
    Se sincronizan por BroadcastChannel; no necesitan servidor.
    ============================================================ */
-const ES_TV = new URLSearchParams(location.search).has('tv');
+const PARAMS = new URLSearchParams(location.search);
+const ES_TV  = PARAMS.has('tv');
+const GRUPO  = Math.max(1, Math.min(2, +PARAMS.get('tv') || 1));   // ?tv=1 o ?tv=2
 const canal = ('BroadcastChannel' in self) ? new BroadcastChannel('pf-pantalla') : null;
 
 /* ---------- estado ---------- */
@@ -396,6 +406,8 @@ let fichas = [];              // fichas materializadas (permite editarlas)
 let quitados = new Set();
 let horaSel = 'todas', filtro = 'todos', zkey = null, edUid = null, edTxt0 = null;
 let ultimoBorrado = null, toastT = null, refT = null, yaCargo = false, nLibre = 0;
+let nTV = 1;                  // 1 = un televisor · 2 = dos televisores
+try { nTV = +(localStorage.getItem('pf_ntv')) === 2 ? 2 : 1; } catch(e){}
 const CAP = CONFIG.capacidad;
 
 const $ = s => document.querySelector(s);
@@ -626,11 +638,38 @@ function primeraCarga(){
 function deLaHora(){ return CATALOGO.filter(c => horaSel === 'todas' || c.hora === horaSel); }
 
 /* ---------- fichas ---------- */
-function nuevaFicha(cli, ses, origen){
-  fichas.push({uid: uid(), origen: origen || 'cms', editado: false,
+function nuevaFicha(cli, ses, origen, tv){
+  fichas.push({uid: uid(), origen: origen || 'cms', editado: false, tv: tv || tvMasLibre(),
     cli: {id: cli.id, nombre: cli.nombre, tipo: cli.tipo, profesional: cli.profesional || '',
           plan: cli.plan || '', objetivo: cli.objetivo || '', hora: cli.hora || ''},
     ses: clonar({id: ses.id, etiqueta: ses.etiqueta || '', titulo: ses.titulo || '', bloques: ses.bloques})});
+}
+// reparte a la pantalla que va más vacía, para que no se llene una sola
+function tvMasLibre(){
+  if (nTV < 2) return 1;
+  const n1 = fichas.filter(f => (f.tv || 1) === 1).length;
+  const n2 = fichas.filter(f => (f.tv || 1) === 2).length;
+  return n2 < n1 ? 2 : 1;
+}
+function cambiarTV(u){
+  const f = ficha(u); if (!f) return;
+  f.tv = (f.tv || 1) === 1 ? 2 : 1;
+  render(); listar();
+}
+function cambiarNumeroTV(){
+  nTV = nTV === 1 ? 2 : 1;
+  try { localStorage.setItem('pf_ntv', nTV); } catch(e){}
+  if (nTV === 1) fichas.forEach(f => f.tv = 1);
+  else { fichas.forEach((f, i) => f.tv = f.tv || 1);
+         // primer reparto: mitad y mitad, respetando el orden en que llegaron
+         fichas.forEach((f, i) => f.tv = i < Math.ceil(fichas.length / 2) ? 1 : 2); }
+  pintarBotonesTV(); render(); listar();
+}
+function pintarBotonesTV(){
+  if (ES_TV) return;
+  $('#btnNTV').innerHTML = nTV === 1 ? '▣ Un televisor' : '▣▣ Dos televisores';
+  $('#btnTV').innerHTML  = nTV === 1 ? '▣ Abrir pantalla del box <kbd>P</kbd>' : '▣ Abrir TV 1';
+  $('#btnTV2').style.display = nTV === 2 ? '' : 'none';
 }
 function agregar(cid, sid){
   const c = CAND.find(x => x.cid === cid && x.sid === sid); if (!c) return;
@@ -688,20 +727,24 @@ function blocksHTML(ses){
 function headHTML(f, conBotones){
   const c = f.cli, s = f.ses;
   // en una clase de prueba la etiqueta ya suele decir "clase de prueba": no se repite
-  const etiq = (f.origen === 'libre' && /prueba/i.test(s.etiqueta || '')) ? '' : (s.etiqueta || '');
+  // El "Día 1 / Día 2 / Día 3" es lo único que distingue una sesión de otra:
+  // la etiqueta dice "Sesión A" en 121 de los 122 clientes con varias sesiones.
+  const etiq = (f.origen === 'libre' && /prueba/i.test(s.etiqueta || ''))
+             ? '' : (s.titulo || s.etiqueta || '');
   return `<div class="c-head">
     <div class="c-id">
       <div class="c-name">${esc(c.nombre)}</div>
       <div class="c-sub">
         <span class="tag serv">${c.tipo==='kinesiologia'?'Kinesio':'Entren.'}</span>
-        ${etiq?`<span class="tag">${esc(etiq)}</span>`:''}
-        ${s.titulo?`<span class="tag">${esc(s.titulo)}</span>`:(c.objetivo?`<span class="tag">${esc(c.objetivo)}</span>`:'')}
+        ${etiq?`<span class="tag dia">${esc(etiq)}</span>`:''}
+        ${(!s.titulo && c.objetivo)?`<span class="tag">${esc(c.objetivo)}</span>`:''}
         ${c.hora?`<span class="tag">${esc(c.hora)}</span>`:''}
         ${f.origen==='libre'?`<span class="tag prueba">Clase de prueba</span>`:''}
         ${f.editado?`<span class="tag edit">Editada</span>`:''}
       </div>
     </div>
     ${conBotones?`<div class="c-acc">
+       ${nTV === 2 ? `<button class="c-tv" data-tv="${f.uid}" title="Pasar al otro televisor">TV ${f.tv || 1}</button>` : ''}
        <button class="c-ed" data-ed="${f.uid}" title="Editar planificación">✎</button>
        <button class="c-x"  data-x="${f.uid}"  title="Sacar de la pantalla">✕</button></div>`:''}
   </div>`;
@@ -712,7 +755,7 @@ function cardHTML(f){
 }
 
 /* ---------- empaquetado ---------- */
-const ROW = 6, GAP = 8, FMIN = 7, FMAX = 19;
+const ROW = 6, GAP = 8, FMIN = 7, FMAX = 26;
 function fits(el){ return el.scrollHeight <= el.clientHeight + 1; }
 function altoNatural(card){
   const head = card.querySelector('.c-head'), body = card.querySelector('.c-body');
@@ -763,20 +806,34 @@ function empaquetar(){
   }
   if (mejorCols === null){
     b.style.setProperty('--cols', Math.min(5, Math.max(2, Math.ceil(Math.sqrt(n)))));
-    aplicar(FMIN); tableros().forEach(x => x.classList.add('scroll')); crecerCadaUna(FMIN); return;
+    aplicar(FMIN); tableros().forEach(x => x.classList.add('scroll')); crecerCadaUna(FMIN);
+    avisarQueNoCaben(n); return;
   }
+  avisoNoCaben = false;
   b.style.setProperty('--cols', mejorCols);
   aplicar(mejorFs); crecerCadaUna(mejorFs);
 }
 
+let avisoNoCaben = false;
+function avisarQueNoCaben(n){
+  if (ES_TV || avisoNoCaben) return;
+  avisoNoCaben = true;
+  toast(nTV === 2
+    ? `<b>No caben ${n} fichas</b> en un televisor — pasa algunas con el botón <b>TV</b> de cada ficha`
+    : `<b>No caben ${n} fichas</b> en un televisor — activa <b>Dos televisores</b> y repártelas`, true);
+}
+
 /* ---------- render ---------- */
 function render(){
-  const ent  = fichas.filter(f => f.cli.tipo !== 'kinesiologia');
-  const kine = fichas.filter(f => f.cli.tipo === 'kinesiologia');
+  // En el TV solo se ven las fichas de ESE televisor. En el computador se ven
+  // todas, cada una con el número de la pantalla en la que va a salir.
+  const propias = ES_TV ? fichas.filter(f => (f.tv || 1) === GRUPO) : fichas;
+  const ent  = propias.filter(f => f.cli.tipo !== 'kinesiologia');
+  const kine = propias.filter(f => f.cli.tipo === 'kinesiologia');
   const usaKine = CONFIG.kineDerecha && kine.length > 0;
 
   const b = $('#board'), k = $('#boardKine');
-  b.innerHTML = (usaKine ? ent : fichas).map(cardHTML).join('') +
+  b.innerHTML = (usaKine ? ent : propias).map(cardHTML).join('') +
     (!ES_TV && fichas.length < CAP
       ? `<button class="slot-add" id="slotAdd"><span class="plus">＋</span><span>${
           fichas.length ? 'Agregar sesión' : 'Buscar la primera sesión'}</span></button>` : '');
@@ -810,7 +867,7 @@ function listar(){
       <span class="pill"></span>${c.hora?`<span class="hr">${esc(c.hora)}</span>`:''}
       <span class="nm">${esc(c.nombre)}</span>
       <span class="mt">${c.tipo==='kinesiologia'?'Kinesiología':'Entrenamiento'}${c.plan?' · '+esc(c.plan):''}${c.profesional?' · '+esc(c.profesional):''}</span>
-      <span class="ses">${ses.map(s => `<button class="go${s.hecha?' hecha':''}" data-cid="${esc(c.id)}" data-sid="${esc(s.id)}" title="${esc(s.titulo||'')}">${esc(s.etiqueta)}</button>`).join('')}</span>
+      <span class="ses">${ses.map(s => `<button class="go${s.hecha?' hecha':''}" data-cid="${esc(c.id)}" data-sid="${esc(s.id)}" title="${esc(s.etiqueta||'')}${s.hecha?' · ya realizada':''}">${esc(s.titulo || s.etiqueta)}</button>`).join('')}</span>
     </div>`; }).join('') : `<div class="vacio">No hay clientes que coincidan.</div>`;
 }
 function abrirBuscador(){
@@ -912,7 +969,7 @@ function zopen(u){
   const otras = cli ? cli.sesiones.filter(s => s.bloques.length && s.id !== f.ses.id) : [];
   z.innerHTML = headHTML(f, false)
     + (otras.length ? `<div class="zswitch"><span>Cambiar sesión:</span>${
-        otras.map(s => `<button data-cid="${esc(cli.id)}" data-sid="${esc(s.id)}">${esc(s.etiqueta)}${s.titulo?' · '+esc(s.titulo):''}</button>`).join('')}</div>` : '')
+        otras.map(s => `<button data-cid="${esc(cli.id)}" data-sid="${esc(s.id)}">${esc(s.titulo || s.etiqueta)}${s.hecha?' ✓':''}</button>`).join('')}</div>` : '')
     + `<div class="c-body">${blocksHTML(f.ses)}</div>`;
   $('#zoom').classList.add('on'); $('#zclose').style.display='block';
 }
@@ -934,6 +991,7 @@ if (!ES_TV){
   document.addEventListener('click', e => {
     const x  = e.target.closest('[data-x]');   if (x){ e.stopPropagation(); return quitar(x.dataset.x); }
     const ed = e.target.closest('[data-ed]');  if (ed){ e.stopPropagation(); return abrirEditor(ed.dataset.ed); }
+    const tv = e.target.closest('[data-tv]');  if (tv){ e.stopPropagation(); return cambiarTV(tv.dataset.tv); }
     if (e.target.closest('#slotAdd')) return abrirBuscador();
     const add = e.target.closest('#shList [data-cid]');
     if (add){ agregar(add.dataset.cid, add.dataset.sid); if (fichas.length >= CAP) cerrarBuscador(); return; }
@@ -951,11 +1009,14 @@ if (!ES_TV){
   $('#btnAdd').onclick = abrirBuscador;
   $('#btnSync').onclick = () => sincronizar();
   $('#btnPrueba').onclick = abrirNueva;
-  $('#btnTV').onclick = () => {
-    const w = open(location.pathname + '?tv=1', 'pf_tv', 'width=1280,height=720');
+  const abrirTV = g => {
+    const w = open(location.pathname + '?tv=' + g, 'pf_tv' + g, 'width=1280,height=720');
     setTimeout(() => canal && canal.postMessage({t:'estado', fichas}), 900);
     if (w) w.focus();
   };
+  $('#btnTV').onclick  = () => abrirTV(1);
+  $('#btnTV2').onclick = () => abrirTV(2);
+  $('#btnNTV').onclick = cambiarNumeroTV;
   $('#btnAll').onclick = () => { fichas = []; quitados.clear(); render(); listar(); };
   $('#buscador').addEventListener('click', e => { if (e.target.id === 'buscador') cerrarBuscador(); });
   $('#zoom').addEventListener('click', e => { if (e.target.id === 'zoom') zclose(); });
@@ -993,6 +1054,7 @@ function reloj(){ const n = new Date();
     x.textContent = String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')); }
 setInterval(reloj, 1000); reloj();
 pintarCabecera();
+if (!ES_TV) pintarBotonesTV();
 render();
 if (!ES_TV){
   sincronizar(false);
