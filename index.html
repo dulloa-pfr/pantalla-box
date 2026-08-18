@@ -537,6 +537,31 @@ function sesionATexto(ses){
   }).join('\n\n');
 }
 
+/* ============================================================
+   RÓTULO DE CADA SESIÓN
+   Es lo único que el profesional lee para elegir la sesión del día,
+   así que dentro de un mismo cliente NO se puede repetir.
+   Normalmente basta con el título ("Día 1", "Día 2"), pero hay casos
+   reales donde el título es la fecha y sale igual en dos sesiones del
+   mismo día; ahí desempata la etiqueta ("Sesión 1" / "Sesión 2"), y si
+   ni eso alcanza, un número.
+   ============================================================ */
+function ponerRotulos(sesiones){
+  const cuenta = {};
+  sesiones.forEach(x => { const b = x.titulo || x.etiqueta || '';
+                          cuenta[b] = (cuenta[b] || 0) + 1; });
+  const usados = {};
+  sesiones.forEach((x, i) => {
+    const base = x.titulo || x.etiqueta || ('Sesión ' + (i + 1));
+    if (cuenta[base] === 1){ x.rotulo = base; return; }
+    const extra = (x.titulo && x.etiqueta && x.etiqueta !== base) ? x.etiqueta : '';
+    let r = extra ? base + ' · ' + extra : base;
+    usados[r] = (usados[r] || 0) + 1;
+    x.rotulo = usados[r] > 1 ? r + ' (' + usados[r] + ')' : r;
+  });
+  return sesiones;
+}
+
 /* ---------- lectura del endpoint ---------- */
 function desdeCatalogo(json){
   return (json.clientes || []).map((c, i) => ({
@@ -544,10 +569,10 @@ function desdeCatalogo(json){
     tipo: esKine(c.servicio) ? 'kinesiologia' : 'entrenamiento',
     profesional: c.profesional || '', objetivo: (c.plan && c.plan.objetivo) || '',
     plan: (c.plan && c.plan.nombre) || '', hora: '',
-    sesiones: (c.sesiones || []).map((s, j) => ({
+    sesiones: ponerRotulos((c.sesiones || []).map((s, j) => ({
       id: String(s.id ?? (i+'-'+j)), etiqueta: s.etiqueta || ('Sesión ' + (j+1)),
       titulo: s.titulo || '', hecha: !!s.hecha, bloques: limpiaBloques(s.bloques)
-    })).filter(s => s.bloques.length)
+    })).filter(s => s.bloques.length))
   })).filter(c => c.sesiones.length);
 }
 function desdeAgenda(json){
@@ -560,11 +585,11 @@ function desdeAgenda(json){
       tipo: esKine(cl.servicio) ? 'kinesiologia' : 'entrenamiento',
       profesional: s.profesional || '', objetivo: p.objetivo || '', plan: p.nombre || '',
       hora: normHora(s.hora_inicio),
-      sesiones: [{id: String(p.sesion_id ?? i), etiqueta: p.sesion || 'Sesión',
+      sesiones: ponerRotulos([{id: String(p.sesion_id ?? i), etiqueta: p.sesion || 'Sesión',
                   titulo: p.sesion_titulo || '', hecha: false, bloques: bl}]
         .concat((p.sesiones_disponibles || []).filter(x => String(x.id) !== String(p.sesion_id))
           .map(x => ({id: String(x.id), etiqueta: x.etiqueta || '', titulo: x.titulo || '',
-                      hecha: !!x.hecha, bloques: []}))) });
+                      hecha: !!x.hecha, bloques: []})))) });
   });
   return out;
 }
@@ -642,7 +667,8 @@ function nuevaFicha(cli, ses, origen, tv){
   fichas.push({uid: uid(), origen: origen || 'cms', editado: false, tv: tv || tvMasLibre(),
     cli: {id: cli.id, nombre: cli.nombre, tipo: cli.tipo, profesional: cli.profesional || '',
           plan: cli.plan || '', objetivo: cli.objetivo || '', hora: cli.hora || ''},
-    ses: clonar({id: ses.id, etiqueta: ses.etiqueta || '', titulo: ses.titulo || '', bloques: ses.bloques})});
+    ses: clonar({id: ses.id, etiqueta: ses.etiqueta || '', titulo: ses.titulo || '',
+                 rotulo: ses.rotulo || ses.titulo || ses.etiqueta || '', bloques: ses.bloques})});
 }
 // reparte a la pantalla que va más vacía, para que no se llene una sola
 function tvMasLibre(){
@@ -730,7 +756,7 @@ function headHTML(f, conBotones){
   // El "Día 1 / Día 2 / Día 3" es lo único que distingue una sesión de otra:
   // la etiqueta dice "Sesión A" en 121 de los 122 clientes con varias sesiones.
   const etiq = (f.origen === 'libre' && /prueba/i.test(s.etiqueta || ''))
-             ? '' : (s.titulo || s.etiqueta || '');
+             ? '' : (s.rotulo || s.titulo || s.etiqueta || '');
   return `<div class="c-head">
     <div class="c-id">
       <div class="c-name">${esc(c.nombre)}</div>
@@ -867,7 +893,7 @@ function listar(){
       <span class="pill"></span>${c.hora?`<span class="hr">${esc(c.hora)}</span>`:''}
       <span class="nm">${esc(c.nombre)}</span>
       <span class="mt">${c.tipo==='kinesiologia'?'Kinesiología':'Entrenamiento'}${c.plan?' · '+esc(c.plan):''}${c.profesional?' · '+esc(c.profesional):''}</span>
-      <span class="ses">${ses.map(s => `<button class="go${s.hecha?' hecha':''}" data-cid="${esc(c.id)}" data-sid="${esc(s.id)}" title="${esc(s.etiqueta||'')}${s.hecha?' · ya realizada':''}">${esc(s.titulo || s.etiqueta)}</button>`).join('')}</span>
+      <span class="ses">${ses.map(s => `<button class="go${s.hecha?' hecha':''}" data-cid="${esc(c.id)}" data-sid="${esc(s.id)}" title="${esc(s.etiqueta||'')}${s.hecha?' · ya realizada':''}">${esc(s.rotulo || s.titulo || s.etiqueta)}</button>`).join('')}</span>
     </div>`; }).join('') : `<div class="vacio">No hay clientes que coincidan.</div>`;
 }
 function abrirBuscador(){
@@ -969,7 +995,7 @@ function zopen(u){
   const otras = cli ? cli.sesiones.filter(s => s.bloques.length && s.id !== f.ses.id) : [];
   z.innerHTML = headHTML(f, false)
     + (otras.length ? `<div class="zswitch"><span>Cambiar sesión:</span>${
-        otras.map(s => `<button data-cid="${esc(cli.id)}" data-sid="${esc(s.id)}">${esc(s.titulo || s.etiqueta)}${s.hecha?' ✓':''}</button>`).join('')}</div>` : '')
+        otras.map(s => `<button data-cid="${esc(cli.id)}" data-sid="${esc(s.id)}">${esc(s.rotulo || s.titulo || s.etiqueta)}${s.hecha?' ✓':''}</button>`).join('')}</div>` : '')
     + `<div class="c-body">${blocksHTML(f.ses)}</div>`;
   $('#zoom').classList.add('on'); $('#zclose').style.display='block';
 }
