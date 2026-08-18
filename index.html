@@ -4,11 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Patagonia Fit &amp; Rehab · Pantalla de sesión</title>
-<link rel="icon" href="icon-192.png">
-<link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#1D1D1B">
-<meta name="mobile-web-app-capable" content="yes">
-<link rel="apple-touch-icon" href="icon-192.png">
 <style>
   :root{
     --negro:#1D1D1B; --magenta:#AC07F2; --lima:#B2D705; --blanco:#FFFFFF;
@@ -52,7 +47,7 @@
   .horas button i{display:block;font-size:8.5px;font-weight:700;opacity:.7;font-style:normal}
   .conn{display:flex;align-items:center;gap:7px;flex:0 0 auto;font-size:10.5px;
         font-weight:700;color:var(--txt-3);background:var(--card);border:1px solid var(--line);
-        padding:6px 11px;border-radius:7px;max-width:280px}
+        padding:6px 11px;border-radius:7px;max-width:260px}
   .conn b{color:var(--txt-2)}
   .conn .dotf{width:7px;height:7px;border-radius:50%;background:var(--lima);flex:0 0 auto}
   .conn .dotf.off{background:#8A5A12}
@@ -63,15 +58,21 @@
   .btn:hover{color:var(--blanco);border-color:var(--lima)}
   .btn.primary{background:var(--magenta);color:#fff;border-color:var(--magenta)}
   .btn.primary:hover{filter:brightness(1.15);color:#fff}
+  .btn.tv{border-color:var(--lima);color:var(--lima)}
   .btn kbd{font-size:9.5px;opacity:.6;border:1px solid currentColor;border-radius:3px;padding:0 3px;line-height:13px}
   .clock{font-variant-numeric:tabular-nums;font-size:22px;font-weight:900;letter-spacing:-.5px;flex:0 0 auto}
-  body.zen header{display:none}
 
   /* ================= TABLERO (empaquetado tetris) ================= */
-  main{flex:1;min-height:0;position:relative}
+  main{flex:1;min-height:0;position:relative;display:flex;align-items:stretch}
   .board{height:100%;overflow:hidden;display:grid;gap:8px;padding:9px 11px 11px;
          grid-template-columns:repeat(var(--cols,5),1fr);
          grid-auto-rows:6px;grid-auto-flow:row dense;align-content:start}
+  #board{flex:1 1 auto;min-width:0}
+  #boardKine{flex:0 0 19%;min-width:0;--cols:1;
+             border-left:2px solid var(--kin);background:rgba(178,215,5,.045)}
+  .kine-tit{grid-column:1/-1;grid-row:span 3;font-size:10.5px;font-weight:900;letter-spacing:1.4px;
+            text-transform:uppercase;color:var(--kin);display:flex;align-items:center;gap:7px}
+  .kine-tit::after{content:"";flex:1;height:2px;background:var(--kin);opacity:.35;border-radius:2px}
   .board.scroll{overflow:auto}
   .board::-webkit-scrollbar{width:8px}
   .board::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px}
@@ -84,7 +85,6 @@
   .card.kin{--acc:var(--kin);--acc-txt:var(--kin-txt)}
   .card:hover{box-shadow:0 8px 26px rgba(0,0,0,.55);border-color:var(--acc)}
   .card.saliendo{opacity:0;transform:scale(.94)}
-  .card.done{opacity:.3;filter:grayscale(.8)}
 
   .c-head{padding:8px 11px 7px;border-bottom:1px solid var(--line-soft);flex:0 0 auto;
           background:var(--card-2);display:flex;align-items:flex-start;gap:8px}
@@ -97,11 +97,15 @@
        background:color-mix(in srgb,var(--acc) 18%,transparent);
        color:var(--acc-txt);border:1px solid color-mix(in srgb,var(--acc) 45%,transparent)}
   .tag.serv{background:var(--acc);color:#12120F;border-color:var(--acc)}
+  .tag.prueba{background:#F2A007;color:#12120F;border-color:#F2A007}
+  .tag.edit{background:transparent;color:#F2A007;border-color:#F2A007}
 
-  .c-x{flex:0 0 auto;width:22px;height:22px;border-radius:6px;border:1px solid var(--line);
-       background:#191917;color:var(--txt-3);font-size:13px;font-weight:900;line-height:1;
+  .c-acc{flex:0 0 auto;display:flex;gap:4px}
+  .c-x,.c-ed{width:22px;height:22px;border-radius:6px;border:1px solid var(--line);
+       background:#191917;color:var(--txt-3);font-size:12px;font-weight:900;line-height:1;
        cursor:pointer;display:grid;place-items:center;transition:.14s}
   .c-x:hover{background:#C0182B;border-color:#C0182B;color:#fff}
+  .c-ed:hover{background:var(--lima);border-color:var(--lima);color:#12120F}
 
   .c-body{flex:1;min-height:0;overflow:hidden;padding:8px 11px 10px;font-size:13px}
   .blocks{display:flex;flex-direction:column;gap:.68em}
@@ -127,10 +131,10 @@
   .slot-add .plus{font-size:30px;font-weight:300;line-height:1}
   .slot-add span{font-size:10.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase}
 
-  /* ================= BUSCADOR ================= */
-  .ov{position:fixed;inset:0;z-index:70;display:none;background:rgba(8,8,7,.9);padding:40px;place-items:start center}
+  /* ================= HOJAS (buscador / editor) ================= */
+  .ov{position:fixed;inset:0;z-index:70;display:none;background:rgba(8,8,7,.92);padding:34px;place-items:start center}
   .ov.on{display:grid}
-  .sheet{width:min(820px,94vw);max-height:86vh;display:flex;flex-direction:column;
+  .sheet{width:min(820px,94vw);max-height:88vh;display:flex;flex-direction:column;
          background:var(--card);border:1px solid var(--line);border-top:4px solid var(--lima);
          border-radius:16px;box-shadow:0 30px 90px rgba(0,0,0,.8);overflow:hidden;
          animation:pop .18s cubic-bezier(.2,.9,.3,1)}
@@ -138,6 +142,7 @@
   .sheet h2{font-size:19px;font-weight:900;letter-spacing:-.3px}
   .sh-head{padding:18px 22px 14px;border-bottom:1px solid var(--line-soft);background:var(--card-2)}
   .sh-sub{font-size:12px;color:var(--txt-2);margin-top:3px}
+  .sh-sub b{color:var(--lima)}
   .sh-tools{display:flex;gap:9px;padding:13px 22px;border-bottom:1px solid var(--line-soft);align-items:center}
   #q{flex:1;background:#181816;border:1px solid var(--line);color:var(--txt);
      padding:11px 14px;border-radius:9px;font:inherit;font-size:15px;outline:none}
@@ -147,7 +152,7 @@
                   padding:7px 11px;border-radius:6px;cursor:pointer;white-space:nowrap}
   .filtros button.on{background:var(--lima);color:#12120F}
   .sh-list{overflow:auto;padding:10px 14px 16px}
-  .row{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:9px;cursor:pointer;
+  .row{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:9px;
        border:1px solid transparent}
   .row:hover{background:#1B1B19;border-color:var(--line)}
   .row .pill{width:5px;align-self:stretch;border-radius:4px;flex:0 0 auto}
@@ -155,15 +160,6 @@
   .row .nm{font-size:16px;font-weight:800;flex:1;min-width:0}
   .row .mt{font-size:11.5px;color:var(--txt-2);white-space:nowrap}
   .row .hr{font-size:13px;font-weight:900;color:var(--txt);min-width:52px;font-variant-numeric:tabular-nums}
-  .row .go{font-size:11px;font-weight:900;color:#12120F;background:var(--lima);padding:5px 11px;border-radius:6px}
-  .vacio{padding:26px;text-align:center;color:var(--txt-3);font-size:14px}
-  .fuente{padding:11px 22px;border-top:1px solid var(--line-soft);background:var(--card-2);
-          font-size:11px;color:var(--txt-3);display:flex;align-items:center;gap:8px}
-  .fuente b{color:var(--txt-2)}
-  .dotf{width:7px;height:7px;border-radius:50%;background:var(--lima);flex:0 0 auto}
-  .dotf.off{background:#8A5A12}
-
-
   .row .ses{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;flex:0 0 auto}
   .row .go{font-size:11.5px;font-weight:900;color:#12120F;background:var(--lima);
            border:0;padding:6px 11px;border-radius:6px;cursor:pointer;white-space:nowrap}
@@ -171,12 +167,38 @@
   .row.ent .go{background:var(--ent);color:#fff}
   .row .go.hecha{background:#33332F;color:var(--txt-3)}
   .row .go.hecha::after{content:" ✓"}
-  .zswitch{display:flex;align-items:center;gap:8px;flex-wrap:wrap;
-           padding:12px 32px;border-bottom:1px solid var(--line-soft);background:#1E1E1C}
-  .zswitch span{font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--txt-3)}
-  .zswitch button{font-size:14px;font-weight:800;color:var(--txt);background:var(--card-2);
-                  border:1px solid var(--line);padding:8px 14px;border-radius:8px;cursor:pointer}
-  .zswitch button:hover{border-color:var(--acc);color:var(--acc-txt)}
+  .vacio{padding:26px;text-align:center;color:var(--txt-3);font-size:14px}
+  .fuente{padding:11px 22px;border-top:1px solid var(--line-soft);background:var(--card-2);
+          font-size:11px;color:var(--txt-3);display:flex;align-items:center;gap:8px}
+  .fuente b{color:var(--txt-2)}
+  .dotf{width:7px;height:7px;border-radius:50%;background:var(--lima);flex:0 0 auto}
+  .dotf.off{background:#8A5A12}
+  .dotf.err{background:#C0182B}
+
+  /* ================= EDITOR / CLASE DE PRUEBA ================= */
+  #editor .sheet{width:min(1180px,96vw);border-top-color:#F2A007}
+  .ed-body{flex:1;min-height:0;display:flex;gap:0}
+  .ed-col{flex:1 1 50%;min-width:0;display:flex;flex-direction:column;padding:14px 18px}
+  .ed-col.prev{border-left:1px solid var(--line-soft);background:#1A1A18;overflow:auto}
+  .ed-lab{font-size:10px;font-weight:900;letter-spacing:1.2px;text-transform:uppercase;
+          color:var(--txt-3);margin-bottom:9px}
+  .ed-campos{display:flex;gap:8px;margin-bottom:9px}
+  .ed-campos input,.ed-campos select{background:#181816;border:1px solid var(--line);color:var(--txt);
+    padding:9px 11px;border-radius:8px;font:inherit;font-size:13.5px;outline:none;min-width:0}
+  .ed-campos input:focus,.ed-campos select:focus{border-color:#F2A007}
+  #edNombre{flex:1 1 auto;font-weight:800}
+  #edNombre[readonly]{opacity:.6;cursor:not-allowed}
+  #edEtiq{flex:0 0 32%}
+  #edTxt{flex:1;min-height:230px;background:#141413;border:1px solid var(--line);color:var(--txt);
+         padding:12px 13px;border-radius:9px;font-family:"SFMono-Regular",Consolas,monospace;
+         font-size:13.5px;line-height:1.62;resize:none;outline:none;white-space:pre;overflow:auto}
+  #edTxt:focus{border-color:#F2A007}
+  .ed-info{font-size:11px;color:var(--txt-3);margin-top:7px;font-weight:700}
+  #edPrev .card{max-width:420px}
+  .ed-pie{display:flex;align-items:center;gap:9px;padding:13px 18px;
+          border-top:1px solid var(--line-soft);background:var(--card-2)}
+  .ed-ayuda{font-size:11px;color:var(--txt-3);line-height:1.5;margin-top:8px}
+  .ed-ayuda code{background:#141413;border:1px solid var(--line);border-radius:4px;padding:0 4px;color:var(--lima)}
 
   /* ================= ZOOM ================= */
   #zoom{position:fixed;inset:0;z-index:60;display:none;background:rgba(8,8,7,.95);padding:30px;place-items:center}
@@ -187,9 +209,15 @@
   .zcard .c-head{padding:24px 32px 20px}
   .zcard .c-name{font-size:42px}
   .zcard .tag{font-size:12.5px;padding:4px 10px}
-  .zcard .c-x{display:none}
+  .zcard .c-acc{display:none}
   .zcard .c-body{padding:22px 32px 30px;font-size:23px;overflow:visible}
   .zcard .blocks{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:1em;align-items:start}
+  .zswitch{display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+           padding:12px 32px;border-bottom:1px solid var(--line-soft);background:#1E1E1C}
+  .zswitch span{font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--txt-3)}
+  .zswitch button{font-size:14px;font-weight:800;color:var(--txt);background:var(--card-2);
+                  border:1px solid var(--line);padding:8px 14px;border-radius:8px;cursor:pointer}
+  .zswitch button:hover{border-color:var(--acc);color:var(--acc-txt)}
   .zclose{position:fixed;top:24px;right:28px;z-index:71;width:44px;height:44px;border-radius:50%;
           background:var(--card);border:1px solid var(--line);color:var(--txt);font-size:19px;cursor:pointer;display:none}
   .zclose:hover{border-color:var(--lima);color:var(--lima)}
@@ -204,12 +232,20 @@
   #toast button{background:var(--lima);color:#12120F;border:0;padding:7px 13px;border-radius:6px;
                 font-size:12px;font-weight:900;cursor:pointer}
 
-  .hint{position:absolute;bottom:10px;left:15px;font-size:10.5px;color:var(--txt-3);pointer-events:none}
+  .hint{position:absolute;bottom:8px;left:15px;font-size:10.5px;color:var(--txt-3);pointer-events:none}
   .hint b{color:var(--txt-2)}
-  #zenout{position:fixed;top:9px;right:13px;z-index:50;display:none;font-size:10.5px;font-weight:800;
-          color:var(--txt-3);background:rgba(29,29,27,.92);border:1px solid var(--line);
-          padding:6px 10px;border-radius:7px;cursor:pointer}
-  body.zen #zenout{display:block}
+
+  /* ================= VISTA PROYECCIÓN (?tv=1) =================
+     El TV solo muestra planificaciones. Nunca el buscador,
+     nunca el editor, nunca los botones de la profesional. */
+  body.tv .btn,body.tv .conn,body.tv .horas,body.tv .hint,body.tv .clock,
+  body.tv .c-acc,body.tv .ov,body.tv #zoom,body.tv #toast,body.tv .zclose{display:none !important}
+  body.tv header{padding:6px 20px;gap:20px}
+  body.tv .logo{height:46px}
+  body.tv .slot .hour{font-size:28px}
+  body.tv .card:hover{box-shadow:none;border-color:var(--line)}
+  body.tv .card.kin:hover{border-color:var(--line)}
+  body.tv #boardKine{flex-basis:22%}
 </style>
 </head>
 <body>
@@ -223,23 +259,23 @@
       <div class="lg ent"><i></i>Entrenamiento <b id="nEnt">0</b></div>
       <div class="lg kin"><i></i>Kinesiología <b id="nKin">0</b></div>
     </div>
-    <div class="sep"></div>
     <div class="horas" id="horas"></div>
     <div class="spacer"></div>
     <div class="conn" id="conn" title="Origen de los datos"><span class="dotf off"></span><span id="connTxt">—</span></div>
     <button class="btn primary" id="btnAdd">＋ Buscar sesión <kbd>A</kbd></button>
-    <button class="btn" id="btnZen">Pantalla limpia <kbd>Z</kbd></button>
-    <button class="btn" id="btnAll">Restaurar todos</button>
+    <button class="btn" id="btnPrueba">✎ Clase de prueba <kbd>N</kbd></button>
+    <button class="btn tv" id="btnTV">▣ Abrir pantalla del box <kbd>P</kbd></button>
+    <button class="btn" id="btnAll">Vaciar</button>
     <div class="clock" id="clock">--:--</div>
   </header>
   <main>
     <div class="board" id="board"></div>
-    <div class="hint">Clic en una ficha la agranda · <b>✕</b> la saca de la pantalla y el resto se reacomoda · <b>+</b> trae una sesión desde Drive</div>
+    <aside class="board" id="boardKine"></aside>
+    <div class="hint">Clic en una ficha la agranda · <b>✎</b> edita la planificación · <b>✕</b> la saca y el resto se reacomoda · lo que buscas aquí <b>no se ve en el TV</b></div>
   </main>
 </div>
-<button id="zenout">↩ barra (Z)</button>
 
-<!-- buscador -->
+<!-- ============ BUSCADOR (solo en el computador) ============ -->
 <div class="ov" id="buscador">
   <div class="sheet">
     <div class="sh-head">
@@ -253,10 +289,58 @@
         <button data-f="entrenamiento">Entrenamiento</button>
         <button data-f="kinesiologia">Kinesiología</button>
       </div>
-      <button class="btn" id="btnSync">⟳ Drive</button>
+      <button class="btn" id="btnSync">⟳ Actualizar</button>
     </div>
     <div class="sh-list" id="shList"></div>
     <div class="fuente"><span class="dotf" id="dotf"></span><span id="fuenteTxt">—</span></div>
+  </div>
+</div>
+
+<!-- ============ EDITOR / CLASE DE PRUEBA ============ -->
+<div class="ov" id="editor">
+  <div class="sheet">
+    <div class="sh-head">
+      <h2 id="edTit">Editar planificación</h2>
+      <div class="sh-sub">Una línea por ejercicio · <b>#</b> al inicio = título del bloque · una línea en blanco separa bloques · la carga va después de <b>|</b></div>
+    </div>
+    <div class="ed-body">
+      <div class="ed-col">
+        <div class="ed-lab">Planificación</div>
+        <div class="ed-campos">
+          <input id="edNombre" placeholder="Nombre del cliente" autocomplete="off">
+          <select id="edTipo">
+            <option value="entrenamiento">Entrenamiento</option>
+            <option value="kinesiologia">Kinesiología</option>
+          </select>
+          <input id="edEtiq" placeholder="Sesión" autocomplete="off">
+        </div>
+        <textarea id="edTxt" spellcheck="false" placeholder="# Calentamiento
+10 sentadilla con salto
+movilidad de cadera x20
+
+# Fuerza x4
+8 press banca | 40 kg
+10 remo con barra | 30 kg
+12 zancadas"></textarea>
+        <div class="ed-info" id="edInfo">—</div>
+        <div class="ed-ayuda">
+          <code>#&nbsp;Fuerza x4</code> abre un bloque (el <code>x4</code> son las rondas) ·
+          las repeticiones van al principio (<code>10 sentadilla</code>) o al final (<code>sentadilla x10</code>) ·
+          el peso va después de <code>|</code> · si pegas una planificación desde WhatsApp o el Excel
+          sin <code>#</code>, igual se entiende: la primera línea de cada grupo se toma como título.
+        </div>
+      </div>
+      <div class="ed-col prev">
+        <div class="ed-lab">Así se va a ver en el TV</div>
+        <div id="edPrev"></div>
+      </div>
+    </div>
+    <div class="ed-pie">
+      <button class="btn" id="btnCancelar">Cancelar</button>
+      <div class="spacer"></div>
+      <button class="btn" id="btnGuardarCMS">💾 Guardar también en el CMS</button>
+      <button class="btn primary" id="btnAplicar">Proyectar</button>
+    </div>
   </div>
 </div>
 
@@ -265,47 +349,53 @@
 <div id="toast"><span id="toastTxt"></span><button id="toastBtn">Deshacer</button></div>
 
 <script>
+
 /* ============================================================
    FUENTE DE DATOS  —  lo único que hay que configurar
    ============================================================ */
 const CONFIG = {
-  // A) Catálogo de clientes con plan activo  (FASE 1 — no depende de la agenda)
-  //    Ej: "https://tu-cms.onrender.com/api/pantalla/clientes"
-  endpoint: "https://patagonia-fit-cms.onrender.com/api/pantalla/clientes?token=879ef46a17512913fe60762bf6d6b13fec40cac3",
-
-  // B) Sesiones agendadas del día  (FASE 2 — cuando se agende entrenamiento)
-  //    Si se define, la pantalla carga sola la gente de cada bloque horario.
-  endpointAgenda: "",
-
-  // C) Alternativa sin CMS: CSV publicado de Google Sheets
+  endpoint: "https://patagonia-fit-cms.onrender.com/api/pantalla/clientes?token=879ef46a17512913fe60762bf6d6b13fec40cac3",              // catálogo de clientes con plan activo
+  endpointAgenda: "",        // fase 2: sesiones agendadas del día
+  endpointGuardar: "",       // POST para guardar ediciones en el CMS (opcional)
   csv: "",
-
-  fecha: "",                 // vacío = hoy
-  refrescoSegundos: 300,     // 0 = no refrescar solo
-  cargarHoraActual: true,    // solo aplica en modo agenda
-  capacidad: 15
+  fecha: "",
+  refrescoSegundos: 300,
+  cargarHoraActual: true,
+  capacidad: 15,
+  kineDerecha: true          // kinesiología siempre en la franja derecha
 };
 
 const DEMO = {"clientes": [{"id": "cl0", "nombre": "Ivonne", "rut": "10.000.000-0", "servicio": "entrenamiento", "profesional": "Cristóbal Salvo", "plan": {"nombre": "Mesociclo 1", "objetivo": "Hombro / core"}, "sesiones": [{"id": "ps0_0", "etiqueta": "Sesión A", "titulo": "Tren inferior + core", "hecha": true, "bloques": [{"titulo": "Movilidad y activación", "rondas": "x2", "ejercicios": [{"reps": "20", "nombre": "Cat-dog"}, {"reps": "8", "nombre": "Rotación pared codo flexionado"}, {"reps": "2", "nombre": "Monster walk"}, {"reps": "", "nombre": "Hollow m.e."}]}, {"titulo": "Fuerza y estabilidad", "rondas": "x2-3", "ejercicios": [{"reps": "12", "nombre": "Leg press"}, {"reps": "10", "nombre": "Pull apart d.c."}, {"reps": "12", "nombre": "Hip adduction"}, {"reps": "10", "nombre": "Press militar 2 db"}, {"reps": "20", "nombre": "Deadbug + elásticos"}]}]}, {"id": "ps0_1", "etiqueta": "Sesión B", "titulo": "Empuje + estabilidad", "hecha": false, "bloques": [{"titulo": "Fuerza y estabilidad", "rondas": "x2-3", "ejercicios": [{"reps": "12", "nombre": "Leg press"}, {"reps": "10", "nombre": "Pull apart d.c."}, {"reps": "12", "nombre": "Hip adduction"}, {"reps": "10", "nombre": "Press militar 2 db"}, {"reps": "20", "nombre": "Deadbug + elásticos"}]}, {"titulo": "Movilidad y activación", "rondas": "x2", "ejercicios": [{"reps": "20", "nombre": "Cat-dog"}, {"reps": "8", "nombre": "Rotación pared codo flexionado"}, {"reps": "2", "nombre": "Monster walk"}, {"reps": "", "nombre": "Hollow m.e."}]}]}]}, {"id": "cl1", "nombre": "Catherine", "rut": "11.000.001-1", "servicio": "entrenamiento", "profesional": "Cristóbal Salvo", "plan": {"nombre": "Mesociclo 1", "objetivo": "Tren inferior"}, "sesiones": [{"id": "ps1_0", "etiqueta": "Sesión A", "titulo": "Tren inferior + core", "hecha": false, "bloques": [{"titulo": "Movilidad y activación", "rondas": "x2", "ejercicios": [{"reps": "8", "nombre": "Elongación cuádriceps"}, {"reps": "2", "nombre": "Caminata cruzada"}, {"reps": "12", "nombre": "Kanguro squat"}, {"reps": "2", "nombre": "Monster walk"}]}, {"titulo": "Fuerza y estabilidad", "rondas": "x3", "ejercicios": [{"reps": "12", "nombre": "Squat pulse"}, {"reps": "12", "nombre": "Plancha lateral + abducción"}, {"reps": "20", "nombre": "Birdog + traslado ktb"}]}, {"titulo": "Complementario", "rondas": "x3", "ejercicios": [{"reps": "8-10", "nombre": "Estación unilateral + abducción"}, {"reps": "15", "nombre": "Hip abducción"}, {"reps": "", "nombre": "Hollow m.e."}]}]}, {"id": "ps1_1", "etiqueta": "Sesión B", "titulo": "Empuje + estabilidad", "hecha": false, "bloques": [{"titulo": "Complementario", "rondas": "x3", "ejercicios": [{"reps": "8-10", "nombre": "Estación unilateral + abducción"}, {"reps": "15", "nombre": "Hip abducción"}, {"reps": "", "nombre": "Hollow m.e."}]}, {"titulo": "Fuerza y estabilidad", "rondas": "x3", "ejercicios": [{"reps": "12", "nombre": "Squat pulse"}, {"reps": "12", "nombre": "Plancha lateral + abducción"}, {"reps": "20", "nombre": "Birdog + traslado ktb"}]}, {"titulo": "Movilidad y activación", "rondas": "x2", "ejercicios": [{"reps": "8", "nombre": "Elongación cuádriceps"}, {"reps": "2", "nombre": "Caminata cruzada"}, {"reps": "12", "nombre": "Kanguro squat"}, {"reps": "2", "nombre": "Monster walk"}]}]}]}, {"id": "cl2", "nombre": "Ricardo", "rut": "12.000.002-2", "servicio": "entrenamiento", "profesional": "Cristóbal Salvo", "plan": {"nombre": "Mesociclo 1", "objetivo": "Fuerza general"}, "sesiones": [{"id": "ps2_0", "etiqueta": "Sesión A", "titulo": "Tren inferior + core", "hecha": false, "bloques": [{"titulo": "Movilidad y activación", "rondas": "x2", "ejercicios": [{"reps": "10", "nombre": "Rotación pared"}, {"reps": "10", "nombre": "Extensión de rodilla"}, {"reps": "10", "nombre": "Movilidad hombro elástico"}, {"reps": "30-40s", "nombre": "Plancha isométrica"}]}, {"titulo": "Fuerza y estabilidad", "rondas": "x3", "ejercicios": [{"reps": "12", "nombre": "Squat + 1 db", "carga": "20 lb"}, {"reps": "10", "nombre": "Pull apart d.c.", "carga": "3 kg"}, {"reps": "12", "nombre": "Hip abduction", "carga": "50-60 lb"}, {"reps": "8", "nombre": "Press militar 1 db", "carga": "15 lb"}, {"reps": "20", "nombre": "Shoulder tap"}]}]}, {"id": "ps2_1", "etiqueta": "Sesión B", "titulo": "Empuje + estabilidad", "hecha": false, "bloques": [{"titulo": "Fuerza y estabilidad", "rondas": "x3", "ejercicios": [{"reps": "12", "nombre": "Squat + 1 db", "carga": "20 lb"}, {"reps": "10", "nombre": "Pull apart d.c.", "carga": "3 kg"}, {"reps": "12", "nombre": "Hip abduction", "carga": "50-60 lb"}, {"reps": "8", "nombre": "Press militar 1 db", "carga": "15 lb"}, {"reps": "20", "nombre": "Shoulder tap"}]}, {"titulo": "Movilidad y activación", "rondas": "x2", "ejercicios": [{"reps": "10", "nombre": "Rotación pared"}, {"reps": "10", "nombre": "Extensión de rodilla"}, {"reps": "10", "nombre": "Movilidad hombro elástico"}, {"reps": "30-40s", "nombre": "Plancha isométrica"}]}]}]}, {"id": "cl3", "nombre": "M. José", "rut": "13.000.003-3", "servicio": "kinesiologia", "profesional": "Luis Martinez", "plan": {"nombre": "Mesociclo 1", "objetivo": "Hombro / escápula"}, "sesiones": [{"id": "ps3_0", "etiqueta": "Sesión A", "titulo": "Tren inferior + core", "hecha": false, "bloques": [{"titulo": "Movilidad y activación", "rondas": "x2", "ejercicios": [{"reps": "8", "nombre": "Rot. externa hombro bastón + interna"}, {"reps": "12", "nombre": "YWT"}, {"reps": "12", "nombre": "Push up escapular en cajón"}, {"reps": "30-40s", "nombre": "Plancha isométrica"}]}, {"titulo": "Fuerza y estabilidad", "rondas": "x2-3", "ejercicios": [{"reps": "8-12", "nombre": "Cuban press discos"}, {"reps": "2", "nombre": "Monster walk"}, {"reps": "12", "nombre": "Serrato push 1 db"}, {"reps": "12", "nombre": "Pull down kairos"}, {"reps": "10", "nombre": "Press pallof anterior d.c."}]}]}, {"id": "ps3_1", "etiqueta": "Sesión B", "titulo": "Empuje + estabilidad", "hecha": false, "bloques": [{"titulo": "Fuerza y estabilidad", "rondas": "x2-3", "ejercicios": [{"reps": "8-12", "nombre": "Cuban press discos"}, {"reps": "2", "nombre": "Monster walk"}, {"reps": "12", "nombre": "Serrato push 1 db"}, {"reps": "12", "nombre": "Pull down kairos"}, {"reps": "10", "nombre": "Press pallof anterior d.c."}]}, {"titulo": "Movilidad y activación", "rondas": "x2", "ejercicios": [{"reps": "8", "nombre": "Rot. externa hombro bastón + interna"}, {"reps": "12", "nombre": "YWT"}, {"reps": "12", "nombre": "Push up escapular en cajón"}, {"reps": "30-40s", "nombre": "Plancha isométrica"}]}]}]}, {"id": "cl4", "nombre": "Julio", "rut": "14.000.004-4", "servicio": "entrenamiento", "profesional": "Cristóbal Salvo", "plan": {"nombre": "Mesociclo 1", "objetivo": "Fuerza tren inferior"}, "sesiones": [{"id": "ps4_0", "etiqueta": "Sesión A", "titulo": "Tren inferior + core", "hecha": true, "bloques": [{"titulo": "Movilidad y activación", "rondas": "x1", "ejercicios": [{"reps": "10", "nombre": "Kanguro squat"}, {"reps": "8", "nombre": "Rotación elástico"}, {"reps": "2", "nombre": "Monster walk"}, {"reps": "8", "nombre": "Gusanitos"}]}, {"titulo": "Fuerza principal", "rondas": "x3", "ejercicios": [{"reps": "10-12", "nombre": "Hack squat", "carga": "0-5 kg x lado"}, {"reps": "12", "nombre": "Pull apart d.c.", "carga": "3-4,5 kg"}, {"reps": "20", "nombre": "Deadbug + 1 db"}]}, {"titulo": "Accesorios", "rondas": "x3", "ejercicios": [{"reps": "12", "nombre": "Leg extension", "carga": "30-40 kg"}, {"reps": "10", "nombre": "Remo 1 db"}, {"reps": "12", "nombre": "Curl bíceps"}]}]}, {"id": "ps4_1", "etiqueta": "Sesión B", "titulo": "Empuje + estabilidad", "hecha": false, "bloques": [{"titulo": "Accesorios", "rondas": "x3", "ejercicios": [{"reps": "12", "nombre": "Leg extension", "carga": "30-40 kg"}, {"reps": "10", "nombre": "Remo 1 db"}, {"reps": "12", "nombre": "Curl bíceps"}]}, {"titulo": "Fuerza principal", "rondas": "x3", "ejercicios": [{"reps": "10-12", "nombre": "Hack squat", "carga": "0-5 kg x lado"}, {"reps": "12", "nombre": "Pull apart d.c.", "carga": "3-4,5 kg"}, {"reps": "20", "nombre": "Deadbug + 1 db"}]}, {"titulo": "Movilidad y activación", "rondas": "x1", "ejercicios": [{"reps": "10", "nombre": "Kanguro squat"}, {"reps": "8", "nombre": "Rotación elástico"}, {"reps": "2", "nombre": "Monster walk"}, {"reps": "8", "nombre": "Gusanitos"}]}]}]}, {"id": "cl5", "nombre": "Gipsy", "rut": "15.000.005-5", "servicio": "entrenamiento", "profesional": "Cristóbal Salvo", "plan": {"nombre": "Mesociclo 1", "objetivo": "Full body"}, "sesiones": [{"id": "ps5_0", "etiqueta": "Sesión A", "titulo": "Tren inferior + core", "hecha": false, "bloques": [{"titulo": "Movilidad y activación", "rondas": "x2", "ejercicios": [{"reps": "20", "nombre": "Movilidad cadera"}, {"reps": "2", "nombre": "Monster walk"}, {"reps": "8", "nombre": "Gusanitos"}, {"reps": "10", "nombre": "Plancha lateral + abducción"}]}, {"titulo": "Fuerza y estabilidad", "rondas": "x3", "ejercicios": [{"reps": "10", "nombre": "Step up frontal 2 db"}, {"reps": "12", "nombre": "Chest press"}]}, {"titulo": "Fuerza principal", "rondas": "x3", "ejercicios": [{"reps": "12", "nombre": "Hip thrust bb"}, {"reps": "12", "nombre": "Press militar 2 db"}, {"reps": "15", "nombre": "Leg extension"}]}, {"titulo": "Complementario", "rondas": "x3", "ejercicios": [{"reps": "15", "nombre": "Bird dog slide"}, {"reps": "15", "nombre": "Tríceps"}]}]}, {"id": "ps5_1", "etiqueta": "Sesión B", "titulo": "Empuje + estabilidad", "hecha": false, "bloques": [{"titulo": "Complementario", "rondas": "x3", "ejercicios": [{"reps": "15", "nombre": "Bird dog slide"}, {"reps": "15", "nombre": "Tríceps"}]}, {"titulo": "Fuerza principal", "rondas": "x3", "ejercicios": [{"reps": "12", "nombre": "Hip thrust bb"}, {"reps": "12", "nombre": "Press militar 2 db"}, {"reps": "15", "nombre": "Leg extension"}]}, {"titulo": "Fuerza y estabilidad", "rondas": "x3", "ejercicios": [{"reps": "10", "nombre": "Step up frontal 2 db"}, {"reps": "12", "nombre": "Chest press"}]}, {"titulo": "Movilidad y activación", "rondas": "x2", "ejercicios": [{"reps": "20", "nombre": "Movilidad cadera"}, {"reps": "2", "nombre": "Monster walk"}, {"reps": "8", "nombre": "Gusanitos"}, {"reps": "10", "nombre": "Plancha lateral + abducción"}]}]}]}, {"id": "cl6", "nombre": "Juan Antonio", "rut": "16.000.006-6", "servicio": "kinesiologia", "profesional": "Luis Martinez", "plan": {"nombre": "Mesociclo 1", "objetivo": "Fuerza y estabilidad"}, "sesiones": [{"id": "ps6_0", "etiqueta": "Sesión A", "titulo": "Tren inferior + core", "hecha": false, "bloques": [{"titulo": "Movilidad y activación", "rondas": "x1-2", "ejercicios": [{"reps": "10", "nombre": "Extensión de rodilla"}, {"reps": "8", "nombre": "Rotación de tronco pared"}, {"reps": "2", "nombre": "Monster walk"}]}, {"titulo": "Fuerza y estabilidad", "rondas": "x2-3", "ejercicios": [{"reps": "10", "nombre": "Squat técnica + banda", "carga": "50 kg"}, {"reps": "10", "nombre": "Remo kairos", "carga": "40-50 lb"}, {"reps": "10", "nombre": "Hip abduction", "carga": "50-60 lb"}, {"reps": "10", "nombre": "Press pallof anterior d.c."}]}]}, {"id": "ps6_1", "etiqueta": "Sesión B", "titulo": "Empuje + estabilidad", "hecha": false, "bloques": [{"titulo": "Fuerza y estabilidad", "rondas": "x2-3", "ejercicios": [{"reps": "10", "nombre": "Squat técnica + banda", "carga": "50 kg"}, {"reps": "10", "nombre": "Remo kairos", "carga": "40-50 lb"}, {"reps": "10", "nombre": "Hip abduction", "carga": "50-60 lb"}, {"reps": "10", "nombre": "Press pallof anterior d.c."}]}, {"titulo": "Movilidad y activación", "rondas": "x1-2", "ejercicios": [{"reps": "10", "nombre": "Extensión de rodilla"}, {"reps": "8", "nombre": "Rotación de tronco pared"}, {"reps": "2", "nombre": "Monster walk"}]}]}]}, {"id": "cl7", "nombre": "Felipe", "rut": "17.000.007-7", "servicio": "entrenamiento", "profesional": "Cristóbal Salvo", "plan": {"nombre": "Mesociclo 1", "objetivo": "Fuerza barra"}, "sesiones": [{"id": "ps7_0", "etiqueta": "Sesión A", "titulo": "Tren inferior + core", "hecha": false, "bloques": [{"titulo": "Movilidad y activación", "rondas": "x3", "ejercicios": [{"reps": "", "nombre": "Movilidad bird dog"}, {"reps": "8 x lado", "nombre": "Movilidad cadera + rot. externa"}, {"reps": "10", "nombre": "Push up escapular"}, {"reps": "10", "nombre": "Movilidad hombro"}]}, {"titulo": "Fuerza principal", "rondas": "x3", "ejercicios": [{"reps": "12", "nombre": "Squat barra", "carga": "50 kg"}, {"reps": "12", "nombre": "Press banco barra", "carga": "55 kg"}, {"reps": "10 x lado", "nombre": "Estocada posterior 2 db", "carga": "25 lb"}]}, {"titulo": "Accesorios", "rondas": "x3", "ejercicios": [{"reps": "12", "nombre": "Press militar 2 db", "carga": "33 kg"}, {"reps": "12", "nombre": "Press pallof", "carga": "10,5 kg"}, {"reps": "20s", "nombre": "Plancha copenhague"}, {"reps": "10", "nombre": "Tríceps tras nuca", "carga": "47 lb"}]}]}, {"id": "ps7_1", "etiqueta": "Sesión B", "titulo": "Empuje + estabilidad", "hecha": false, "bloques": [{"titulo": "Accesorios", "rondas": "x3", "ejercicios": [{"reps": "12", "nombre": "Press militar 2 db", "carga": "33 kg"}, {"reps": "12", "nombre": "Press pallof", "carga": "10,5 kg"}, {"reps": "20s", "nombre": "Plancha copenhague"}, {"reps": "10", "nombre": "Tríceps tras nuca", "carga": "47 lb"}]}, {"titulo": "Fuerza principal", "rondas": "x3", "ejercicios": [{"reps": "12", "nombre": "Squat barra", "carga": "50 kg"}, {"reps": "12", "nombre": "Press banco barra", "carga": "55 kg"}, {"reps": "10 x lado", "nombre": "Estocada posterior 2 db", "carga": "25 lb"}]}, {"titulo": "Movilidad y activación", "rondas": "x3", "ejercicios": [{"reps": "", "nombre": "Movilidad bird dog"}, {"reps": "8 x lado", "nombre": "Movilidad cadera + rot. externa"}, {"reps": "10", "nombre": "Push up escapular"}, {"reps": "10", "nombre": "Movilidad hombro"}]}]}]}, {"id": "cl8", "nombre": "Sofía", "rut": "18.000.008-8", "servicio": "kinesiologia", "profesional": "Luis Martinez", "plan": {"nombre": "Mesociclo 1", "objetivo": "Movilidad / core"}, "sesiones": [{"id": "ps8_0", "etiqueta": "Sesión A", "titulo": "Tren inferior + core", "hecha": true, "bloques": [{"titulo": "Movilidad y activación", "rondas": "x2", "ejercicios": [{"reps": "2", "nombre": "Caminata cruzada"}, {"reps": "8", "nombre": "Rot. tronco codo flexionado"}, {"reps": "20", "nombre": "Cat-dog lumbopélvico"}, {"reps": "10", "nombre": "Movilidad 90-90"}]}, {"titulo": "Fuerza y estabilidad", "rondas": "x2-3", "ejercicios": [{"reps": "2", "nombre": "Monster walk"}, {"reps": "10", "nombre": "Pull apart d.c."}, {"reps": "15", "nombre": "Squat tempo + banda"}, {"reps": "20", "nombre": "Deadbug dinámico"}]}]}, {"id": "ps8_1", "etiqueta": "Sesión B", "titulo": "Empuje + estabilidad", "hecha": false, "bloques": [{"titulo": "Fuerza y estabilidad", "rondas": "x2-3", "ejercicios": [{"reps": "2", "nombre": "Monster walk"}, {"reps": "10", "nombre": "Pull apart d.c."}, {"reps": "15", "nombre": "Squat tempo + banda"}, {"reps": "20", "nombre": "Deadbug dinámico"}]}, {"titulo": "Movilidad y activación", "rondas": "x2", "ejercicios": [{"reps": "2", "nombre": "Caminata cruzada"}, {"reps": "8", "nombre": "Rot. tronco codo flexionado"}, {"reps": "20", "nombre": "Cat-dog lumbopélvico"}, {"reps": "10", "nombre": "Movilidad 90-90"}]}]}]}, {"id": "cl9", "nombre": "Marta", "rut": "19.000.009-0", "servicio": "kinesiologia", "profesional": "Luis Martinez", "plan": {"nombre": "Mesociclo 1", "objetivo": "Postural / hombro"}, "sesiones": [{"id": "ps9_0", "etiqueta": "Sesión A", "titulo": "Tren inferior + core", "hecha": false, "bloques": [{"titulo": "Movilidad y activación", "rondas": "x2", "ejercicios": [{"reps": "10", "nombre": "Movilidad birdog"}, {"reps": "15", "nombre": "Ángeles"}, {"reps": "30s", "nombre": "Plancha isométrica"}]}, {"titulo": "Fuerza y estabilidad", "rondas": "x2-3", "ejercicios": [{"reps": "2", "nombre": "Monster walk"}, {"reps": "10", "nombre": "Pull apart d.c."}, {"reps": "10", "nombre": "Hip abduction"}, {"reps": "10", "nombre": "Remo kairos"}]}]}, {"id": "ps9_1", "etiqueta": "Sesión B", "titulo": "Empuje + estabilidad", "hecha": false, "bloques": [{"titulo": "Fuerza y estabilidad", "rondas": "x2-3", "ejercicios": [{"reps": "2", "nombre": "Monster walk"}, {"reps": "10", "nombre": "Pull apart d.c."}, {"reps": "10", "nombre": "Hip abduction"}, {"reps": "10", "nombre": "Remo kairos"}]}, {"titulo": "Movilidad y activación", "rondas": "x2", "ejercicios": [{"reps": "10", "nombre": "Movilidad birdog"}, {"reps": "15", "nombre": "Ángeles"}, {"reps": "30s", "nombre": "Plancha isométrica"}]}]}]}, {"id": "cl10", "nombre": "Aurora", "rut": "110.000.000-1", "servicio": "kinesiologia", "profesional": "Luis Martinez", "plan": {"nombre": "Mesociclo 1", "objetivo": "Rendimiento / VBT"}, "sesiones": [{"id": "ps10_0", "etiqueta": "Sesión A", "titulo": "Tren inferior + core", "hecha": false, "bloques": [{"titulo": "A · Movilidad", "rondas": "x1", "ejercicios": [{"reps": "8", "nombre": "Movilidad isquio-psoas"}, {"reps": "10", "nombre": "Movilidad cadera + piramidal"}, {"reps": "3", "nombre": "Movilidad complex hombro"}]}, {"titulo": "B · Potenciación ligera", "rondas": "x3", "ejercicios": [{"reps": "3", "nombre": "Abalakov", "carga": "desc. 90 s"}]}, {"titulo": "C · Fuerza principal", "rondas": "x3", "ejercicios": [{"reps": "6", "nombre": "RDL bilateral", "carga": "VBT 0,30-0,45 m/s · VL ≤10%"}, {"reps": "8", "nombre": "Hip thrust", "carga": "moderada-alta"}, {"reps": "5", "nombre": "Chin ups continuo", "carga": "+ carga progresiva"}, {"reps": "4-5", "nombre": "Press banco"}]}, {"titulo": "D · Específicos + correctivo", "rondas": "x2", "ejercicios": [{"reps": "8 x lado", "nombre": "RDL unilateral"}, {"reps": "20s", "nombre": "Plancha copenhague"}, {"reps": "8", "nombre": "YWT"}]}]}, {"id": "ps10_1", "etiqueta": "Sesión B", "titulo": "Empuje + estabilidad", "hecha": false, "bloques": [{"titulo": "D · Específicos + correctivo", "rondas": "x2", "ejercicios": [{"reps": "8 x lado", "nombre": "RDL unilateral"}, {"reps": "20s", "nombre": "Plancha copenhague"}, {"reps": "8", "nombre": "YWT"}]}, {"titulo": "C · Fuerza principal", "rondas": "x3", "ejercicios": [{"reps": "6", "nombre": "RDL bilateral", "carga": "VBT 0,30-0,45 m/s · VL ≤10%"}, {"reps": "8", "nombre": "Hip thrust", "carga": "moderada-alta"}, {"reps": "5", "nombre": "Chin ups continuo", "carga": "+ carga progresiva"}, {"reps": "4-5", "nombre": "Press banco"}]}, {"titulo": "B · Potenciación ligera", "rondas": "x3", "ejercicios": [{"reps": "3", "nombre": "Abalakov", "carga": "desc. 90 s"}]}, {"titulo": "A · Movilidad", "rondas": "x1", "ejercicios": [{"reps": "8", "nombre": "Movilidad isquio-psoas"}, {"reps": "10", "nombre": "Movilidad cadera + piramidal"}, {"reps": "3", "nombre": "Movilidad complex hombro"}]}]}]}, {"id": "cl11", "nombre": "Cristina", "rut": "111.000.001-2", "servicio": "entrenamiento", "profesional": "Cristóbal Salvo", "plan": {"nombre": "Mesociclo 1", "objetivo": "Full body"}, "sesiones": [{"id": "ps11_0", "etiqueta": "Sesión A", "titulo": "Tren inferior + core", "hecha": false, "bloques": [{"titulo": "Movilidad y activación", "rondas": "x2", "ejercicios": [{"reps": "8", "nombre": "Movilidad isquio-psoas"}, {"reps": "20", "nombre": "Cat-dog lumbopelvis"}, {"reps": "12", "nombre": "Remo elástico + squat"}, {"reps": "20", "nombre": "Shoulder tap"}]}, {"titulo": "Fuerza principal", "rondas": "x3", "ejercicios": [{"reps": "12", "nombre": "Global squat 1 db", "carga": "12,5 kg"}, {"reps": "12", "nombre": "Remo T", "carga": "15 kg"}, {"reps": "10", "nombre": "Press pallof rotación"}]}, {"titulo": "Accesorios", "rondas": "x3", "ejercicios": [{"reps": "12", "nombre": "Hip abduction", "carga": "90 lb"}, {"reps": "8-12", "nombre": "Press banco smith", "carga": "1,5 kg"}, {"reps": "30s", "nombre": "Complex plancha"}]}]}, {"id": "ps11_1", "etiqueta": "Sesión B", "titulo": "Empuje + estabilidad", "hecha": false, "bloques": [{"titulo": "Accesorios", "rondas": "x3", "ejercicios": [{"reps": "12", "nombre": "Hip abduction", "carga": "90 lb"}, {"reps": "8-12", "nombre": "Press banco smith", "carga": "1,5 kg"}, {"reps": "30s", "nombre": "Complex plancha"}]}, {"titulo": "Fuerza principal", "rondas": "x3", "ejercicios": [{"reps": "12", "nombre": "Global squat 1 db", "carga": "12,5 kg"}, {"reps": "12", "nombre": "Remo T", "carga": "15 kg"}, {"reps": "10", "nombre": "Press pallof rotación"}]}, {"titulo": "Movilidad y activación", "rondas": "x2", "ejercicios": [{"reps": "8", "nombre": "Movilidad isquio-psoas"}, {"reps": "20", "nombre": "Cat-dog lumbopelvis"}, {"reps": "12", "nombre": "Remo elástico + squat"}, {"reps": "20", "nombre": "Shoulder tap"}]}]}]}, {"id": "cl12", "nombre": "Jorge", "rut": "112.000.002-3", "servicio": "entrenamiento", "profesional": "Cristóbal Salvo", "plan": {"nombre": "Mesociclo 1", "objetivo": "Full body"}, "sesiones": [{"id": "ps12_0", "etiqueta": "Sesión A", "titulo": "Tren inferior + core", "hecha": true, "bloques": [{"titulo": "Movilidad y activación", "rondas": "x2", "ejercicios": [{"reps": "10", "nombre": "Movilidad cadera"}, {"reps": "10", "nombre": "Rotación aductor"}, {"reps": "10", "nombre": "Movilidad hombro bastón"}, {"reps": "10", "nombre": "Remo elástico"}]}, {"titulo": "Fuerza y estabilidad", "rondas": "x3", "ejercicios": [{"reps": "10", "nombre": "Global squat 1 db"}, {"reps": "10", "nombre": "Pull down unilateral d.c."}, {"reps": "12", "nombre": "Puente glúteo GB"}, {"reps": "10", "nombre": "Chest press"}, {"reps": "20", "nombre": "Shoulder tap"}]}]}, {"id": "ps12_1", "etiqueta": "Sesión B", "titulo": "Empuje + estabilidad", "hecha": false, "bloques": [{"titulo": "Fuerza y estabilidad", "rondas": "x3", "ejercicios": [{"reps": "10", "nombre": "Global squat 1 db"}, {"reps": "10", "nombre": "Pull down unilateral d.c."}, {"reps": "12", "nombre": "Puente glúteo GB"}, {"reps": "10", "nombre": "Chest press"}, {"reps": "20", "nombre": "Shoulder tap"}]}, {"titulo": "Movilidad y activación", "rondas": "x2", "ejercicios": [{"reps": "10", "nombre": "Movilidad cadera"}, {"reps": "10", "nombre": "Rotación aductor"}, {"reps": "10", "nombre": "Movilidad hombro bastón"}, {"reps": "10", "nombre": "Remo elástico"}]}]}]}, {"id": "cl13", "nombre": "Pablo", "rut": "113.000.003-4", "servicio": "entrenamiento", "profesional": "Cristóbal Salvo", "plan": {"nombre": "Mesociclo 1", "objetivo": "Fuerza general"}, "sesiones": [{"id": "ps13_0", "etiqueta": "Sesión A", "titulo": "Tren inferior + core", "hecha": false, "bloques": [{"titulo": "Movilidad y activación", "rondas": "x2", "ejercicios": [{"reps": "10", "nombre": "Movilidad cadera"}, {"reps": "20", "nombre": "Cat-dog"}, {"reps": "2", "nombre": "Monster walk"}]}, {"titulo": "Fuerza principal", "rondas": "x3", "ejercicios": [{"reps": "10", "nombre": "Peso muerto", "carga": "60 kg"}, {"reps": "12", "nombre": "Remo kairos", "carga": "50 lb"}, {"reps": "12", "nombre": "Press militar 2 db", "carga": "20 lb"}, {"reps": "30s", "nombre": "Plancha isométrica"}]}]}, {"id": "ps13_1", "etiqueta": "Sesión B", "titulo": "Empuje + estabilidad", "hecha": false, "bloques": [{"titulo": "Fuerza principal", "rondas": "x3", "ejercicios": [{"reps": "10", "nombre": "Peso muerto", "carga": "60 kg"}, {"reps": "12", "nombre": "Remo kairos", "carga": "50 lb"}, {"reps": "12", "nombre": "Press militar 2 db", "carga": "20 lb"}, {"reps": "30s", "nombre": "Plancha isométrica"}]}, {"titulo": "Movilidad y activación", "rondas": "x2", "ejercicios": [{"reps": "10", "nombre": "Movilidad cadera"}, {"reps": "20", "nombre": "Cat-dog"}, {"reps": "2", "nombre": "Monster walk"}]}]}]}, {"id": "cl14", "nombre": "Valentina", "rut": "114.000.004-5", "servicio": "kinesiologia", "profesional": "Luis Martinez", "plan": {"nombre": "Mesociclo 1", "objetivo": "Rodilla / correctivo"}, "sesiones": [{"id": "ps14_0", "etiqueta": "Sesión A", "titulo": "Tren inferior + core", "hecha": false, "bloques": [{"titulo": "Movilidad y activación", "rondas": "x2", "ejercicios": [{"reps": "10", "nombre": "Extensión de rodilla"}, {"reps": "12", "nombre": "Kanguro squat"}, {"reps": "2", "nombre": "Monster walk"}]}, {"titulo": "Fuerza y estabilidad", "rondas": "x2-3", "ejercicios": [{"reps": "12", "nombre": "Leg press", "carga": "40 kg"}, {"reps": "10 x lado", "nombre": "Estocada posterior"}, {"reps": "12", "nombre": "Hip abduction", "carga": "50 lb"}, {"reps": "20", "nombre": "Deadbug + elásticos"}]}]}, {"id": "ps14_1", "etiqueta": "Sesión B", "titulo": "Empuje + estabilidad", "hecha": false, "bloques": [{"titulo": "Fuerza y estabilidad", "rondas": "x2-3", "ejercicios": [{"reps": "12", "nombre": "Leg press", "carga": "40 kg"}, {"reps": "10 x lado", "nombre": "Estocada posterior"}, {"reps": "12", "nombre": "Hip abduction", "carga": "50 lb"}, {"reps": "20", "nombre": "Deadbug + elásticos"}]}, {"titulo": "Movilidad y activación", "rondas": "x2", "ejercicios": [{"reps": "10", "nombre": "Extensión de rodilla"}, {"reps": "12", "nombre": "Kanguro squat"}, {"reps": "2", "nombre": "Monster walk"}]}]}]}]};
 
+/* ============================================================
+   DOS VISTAS
+   index.html        → CONTROL     (computador del profesional)
+   index.html?tv=1   → PROYECCIÓN  (el TV del box: solo fichas)
+   Se sincronizan por BroadcastChannel; no necesitan servidor.
+   ============================================================ */
+const ES_TV = new URLSearchParams(location.search).has('tv');
+const canal = ('BroadcastChannel' in self) ? new BroadcastChannel('pf-pantalla') : null;
+
 /* ---------- estado ---------- */
-let MODO = 'catalogo';       // 'catalogo' | 'agenda'
-let CATALOGO = [];           // clientes, cada uno con sus sesiones
-let CAND = [];               // candidatos proyectables: {key, cliente, sesion}
-let fichas = [];             // keys proyectadas, en orden
+let MODO = 'catalogo';
+let CATALOGO = [], CAND = [];
+let fichas = [];              // fichas materializadas (permite editarlas)
 let quitados = new Set();
-let horaSel = 'todas', filtro = 'todos', zkey = null;
-let ultimoBorrado = null, toastT = null, refT = null, yaCargo = false;
+let horaSel = 'todas', filtro = 'todos', zkey = null, edUid = null, edTxt0 = null;
+let ultimoBorrado = null, toastT = null, refT = null, yaCargo = false, nLibre = 0;
 const CAP = CONFIG.capacidad;
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const cand = k => CAND.find(c => c.key === k);
+const uid = () => 'f' + Math.random().toString(36).slice(2, 9);
+const ficha = u => fichas.find(f => f.uid === u);
 const hoy = () => { const n = new Date();
   return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0'); };
 const horaAhora = () => String(new Date().getHours()).padStart(2,'0') + ':00';
+const clonar = o => JSON.parse(JSON.stringify(o));
 
 function estado(txt, clase){
+  if (ES_TV) return;
   $('#connTxt').innerHTML = txt;
   $('#conn .dotf').className = 'dotf' + (clase ? ' ' + clase : '');
 }
@@ -330,211 +420,245 @@ function limpiaBloques(bs){
   })).filter(b => b.ejercicios.length);
 }
 
-/* ---------- A) catálogo de clientes ---------- */
+/* ============================================================
+   TEXTO ⇄ SESIÓN
+   El editor y la clase de prueba usan el mismo formato:
+     una línea de título por bloque (puede terminar en x3)
+     debajo los ejercicios, uno por línea
+     la carga va después de una barra vertical
+     una línea en blanco separa bloques
+   ============================================================ */
+const NUM = String.raw`\d+\s*-\s*\d+|\d+`;
+const UNI = String.raw`(?:seg|segs|min|s|'|''|"|′|″)`;
+// OJO: el \s+ antes del nombre es obligatorio. Con \s* el motor se come la primera
+// letra de los ejercicios que empiezan con "s" ("sentadilla" -> "entadilla").
+const RE_PRE  = new RegExp(String.raw`^\s*(${NUM})\s*(${UNI})?\s*(?:reps?\.?)?\s+(?![x×]\s*\d)(.*)$`, 'i');
+const RE_POST = new RegExp(String.raw`^(.*?)\s*[x×]\s*(${NUM})\s*(${UNI})?\s*(\(.*\))?\s*$`, 'i');
+const RE_DUR  = new RegExp(String.raw`^(.*?)\s+(${NUM})\s*(${UNI})\s*$`, 'i');
+const RE_VIN  = /^\s*[•·\-–—*]\s+/;
+const RE_RON  = new RegExp(String.raw`\s*[x×]\s*(\d+(?:\s*-\s*\d+)?)\s*$`, 'i');
+const RE_CARGA_FIN = /\s+(\d+[.,]?\d*\s*(?:-\s*\d+[.,]?\d*\s*)?(?:kg|kgs|lb|lbs|kilos?|libras?)\b.*)$/i;
+
+function separaReps(txt){
+  let t = RE_VIN.exec(txt) ? txt.replace(RE_VIN, '') : txt;
+  t = t.trim();
+  let m;
+  if ((m = RE_PRE.exec(t)) && m[3].trim())
+    return {reps: (m[1] + (m[2] || '')).replace(/\s+/g,''), nombre: m[3].trim(), nota: ''};
+  if ((m = RE_POST.exec(t)) && m[1].trim())
+    return {reps: (m[2] + (m[3] || '')).replace(/\s+/g,''), nombre: m[1].trim(), nota: (m[4] || '').trim()};
+  if ((m = RE_DUR.exec(t)) && m[1].trim())
+    return {reps: (m[2] + m[3]).replace(/\s+/g,''), nombre: m[1].trim(), nota: ''};
+  return {reps: '', nombre: t, nota: ''};
+}
+function textoASesion(txt){
+  const bloques = [];
+  String(txt || '').replace(/\r/g,'').split(/\n\s*\n+/).forEach(trozo => {
+    const lineas = trozo.split('\n').map(l => l.trim()).filter(Boolean);
+    if (!lineas.length) return;
+    let titulo = '', rondas = '', hayCab = false;
+    // "# Fuerza x4" = título explícito (lo escribe la app al abrir el editor).
+    // Sin "#", se usa la heurística: primera línea = título salvo que empiece con número.
+    if (/^#/.test(lineas[0])) {
+      titulo = lineas.shift().replace(/^#\s*/, '').trim(); hayCab = true;
+    } else if (!/^\s*\d/.test(lineas[0]) && lineas.length > 1) {
+      // solo se saca "BLOQUE:" con dos puntos; los títulos del CMS dicen
+      // "Bloque Calentamiento" y esa palabra es parte del nombre.
+      titulo = lineas.shift().replace(/^bloque\s*:\s*/i, '').trim(); hayCab = true;
+    }
+    if (hayCab){
+      const mr = RE_RON.exec(titulo);
+      if (mr){ rondas = 'x' + mr[1].replace(/\s+/g,''); titulo = titulo.slice(0, mr.index).trim(); }
+    }
+    const ejercicios = []; let absorbida = null;
+    lineas.forEach(l => {
+      let carga = '';
+      const partes = l.split(/\s*[|\t]\s*/);
+      if (partes.length > 1){ carga = partes.slice(1).join(' ').trim(); l = partes[0].trim(); }
+      else { const mc = RE_CARGA_FIN.exec(l); if (mc){ carga = mc[1].trim(); l = l.slice(0, mc.index).trim(); } }
+      // una línea suelta "x3" son las rondas del bloque, pero solo si viene antes
+      // de cualquier ejercicio y el bloque aún no las tiene. Si aparece en medio
+      // de la lista se respeta tal cual: separa dos series dentro del mismo bloque.
+      if (/^\s*[x×]\s*\d+(?:\s*-\s*\d+)?\s*$/i.test(l)){
+        if (!rondas && !ejercicios.length){
+          rondas = 'x' + l.replace(/[^\d-]/g,'');
+          absorbida = {reps: '', nombre: l, carga: carga}; return;
+        }
+        ejercicios.push({reps: '', nombre: l, carga: carga}); return;
+      }
+      const r = separaReps(l);
+      if (!r.nombre) return;
+      ejercicios.push({reps: r.reps, nombre: r.nombre,
+                       carga: (carga + (r.nota ? ' ' + r.nota : '')).trim()});
+    });
+    // si el bloque quedó vacío porque su única fila eran las rondas, se devuelve
+    // esa fila: vale más una tarjeta rara que una tarjeta que perdió un bloque.
+    if (!ejercicios.length && absorbida){ rondas = ''; ejercicios.push(absorbida); }
+    if (ejercicios.length) bloques.push({titulo, rondas, ejercicios});
+  });
+  return bloques;
+}
+function sesionATexto(ses){
+  return (ses.bloques || []).map(b => {
+    const cab = [b.titulo, b.rondas].filter(Boolean).join(' ');
+    const filas = b.ejercicios.map(e =>
+      [ [e.reps, e.nombre].filter(Boolean).join(' '), e.carga ].filter(Boolean).join(' | '));
+    return (cab ? '# ' + cab + '\n' : '') + filas.join('\n');
+  }).join('\n\n');
+}
+
+/* ---------- lectura del endpoint ---------- */
 function desdeCatalogo(json){
   return (json.clientes || []).map((c, i) => ({
-    id: String(c.id ?? c.rut ?? ('c'+i)),
-    nombre: c.nombre || 'Sin nombre',
-    rut: c.rut || '',
+    id: String(c.id ?? ('c'+i)), nombre: c.nombre || 'Sin nombre',
     tipo: esKine(c.servicio) ? 'kinesiologia' : 'entrenamiento',
-    profesional: c.profesional || '',
-    objetivo: (c.plan && c.plan.objetivo) || '',
-    plan: (c.plan && c.plan.nombre) || '',
-    hora: '',
+    profesional: c.profesional || '', objetivo: (c.plan && c.plan.objetivo) || '',
+    plan: (c.plan && c.plan.nombre) || '', hora: '',
     sesiones: (c.sesiones || []).map((s, j) => ({
-      id: String(s.id ?? (i+'-'+j)),
-      etiqueta: s.etiqueta || s.sesion || ('Sesión ' + (j+1)),
-      titulo: s.titulo || '',
-      hecha: !!s.hecha,
-      bloques: limpiaBloques(s.bloques)
+      id: String(s.id ?? (i+'-'+j)), etiqueta: s.etiqueta || ('Sesión ' + (j+1)),
+      titulo: s.titulo || '', hecha: !!s.hecha, bloques: limpiaBloques(s.bloques)
     })).filter(s => s.bloques.length)
   })).filter(c => c.sesiones.length);
 }
-
-/* ---------- B) sesiones agendadas del día ---------- */
 function desdeAgenda(json){
-  const porCliente = new Map();
+  const out = [];
   (json.sesiones || []).forEach((s, i) => {
     if (String(s.estado || '').toLowerCase() === 'cancelada') return;
-    const bl = limpiaBloques(s.bloques);
-    if (!bl.length) return;
-    const cl = s.cliente || {};
-    const id = String(s.reserva_id ?? cl.rut ?? ('s'+i));
-    const p = s.plan || {};
-    porCliente.set(id, {
-      id, nombre: cl.nombre || 'Sin nombre', rut: cl.rut || '',
+    const bl = limpiaBloques(s.bloques); if (!bl.length) return;
+    const cl = s.cliente || {}, p = s.plan || {};
+    out.push({ id: String(s.reserva_id ?? ('s'+i)), nombre: cl.nombre || 'Sin nombre',
       tipo: esKine(cl.servicio) ? 'kinesiologia' : 'entrenamiento',
-      profesional: s.profesional || '',
-      objetivo: p.objetivo || '', plan: p.nombre || '',
+      profesional: s.profesional || '', objetivo: p.objetivo || '', plan: p.nombre || '',
       hora: normHora(s.hora_inicio),
-      sesiones: [{
-        id: String(p.sesion_id ?? id),
-        etiqueta: p.sesion || '', titulo: p.sesion_titulo || '',
-        hecha: false, bloques: bl, propuesta: true
-      }].concat((p.sesiones_disponibles || [])
-        .filter(x => String(x.id) !== String(p.sesion_id))
-        .map(x => ({id: String(x.id), etiqueta: x.etiqueta || '', titulo: x.titulo || '',
-                    hecha: !!x.hecha, bloques: []})))
-    });
+      sesiones: [{id: String(p.sesion_id ?? i), etiqueta: p.sesion || 'Sesión',
+                  titulo: p.sesion_titulo || '', hecha: false, bloques: bl}]
+        .concat((p.sesiones_disponibles || []).filter(x => String(x.id) !== String(p.sesion_id))
+          .map(x => ({id: String(x.id), etiqueta: x.etiqueta || '', titulo: x.titulo || '',
+                      hecha: !!x.hecha, bloques: []}))) });
   });
-  return [...porCliente.values()];
+  return out;
 }
-
-/* ---------- C) CSV ---------- */
-function parseCSV(txt){
-  const filas = []; let f = [], cur = '', q = false;
-  for (let i = 0; i < txt.length; i++){
-    const ch = txt[i];
-    if (q){ if (ch === '"'){ if (txt[i+1] === '"'){ cur += '"'; i++; } else q = false; } else cur += ch; }
-    else if (ch === '"') q = true;
-    else if (ch === ','){ f.push(cur); cur = ''; }
-    else if (ch === '\n'){ f.push(cur); filas.push(f); f = []; cur = ''; }
-    else if (ch !== '\r') cur += ch;
-  }
-  if (cur || f.length){ f.push(cur); filas.push(f); }
-  return filas.filter(r => r.some(v => v.trim() !== ''));
-}
-function desdeCSV(txt, fecha){
-  const filas = parseCSV(txt);
-  if (!filas.length) return [];
-  const head = filas[0].map(h => h.trim().toLowerCase());
-  const ix = n => head.indexOf(n);
-  const C = {fecha:ix('fecha'),hora:ix('hora'),cliente:ix('cliente'),tipo:ix('tipo'),dia:ix('dia'),
-             objetivo:ix('objetivo'),bloque:ix('bloque'),rondas:ix('rondas'),reps:ix('reps'),
-             ejercicio:ix('ejercicio'),carga:ix('carga')};
-  const mapa = new Map();
-  for (let i = 1; i < filas.length; i++){
-    const r = filas[i], g = k => C[k] >= 0 ? (r[C[k]] || '').trim() : '';
-    const nombre = g('cliente'); if (!nombre) continue;
-    if (fecha && g('fecha') && g('fecha') !== fecha) continue;
-    const key = nombre.toLowerCase();
-    if (!mapa.has(key)) mapa.set(key, {
-      id: 'g'+mapa.size, nombre, rut: '', tipo: esKine(g('tipo')) ? 'kinesiologia' : 'entrenamiento',
-      profesional: '', objetivo: g('objetivo'), plan: '', hora: normHora(g('hora')),
-      sesiones: [{id: 'g'+mapa.size+'-s', etiqueta: g('dia') || 'Sesión', titulo: '', hecha: false, bloques: []}]
-    });
-    const c = mapa.get(key), ses = c.sesiones[0];
-    const bt = g('bloque') || 'Sesión';
-    let b = ses.bloques.find(x => x.titulo === bt);
-    if (!b){ b = {titulo: bt, rondas: g('rondas'), ejercicios: []}; ses.bloques.push(b); }
-    if (!b.rondas && g('rondas')) b.rondas = g('rondas');
-    if (g('ejercicio')) b.ejercicios.push({reps: g('reps'), nombre: g('ejercicio'), carga: g('carga')});
-  }
-  return [...mapa.values()].filter(c => c.sesiones[0].bloques.length);
-}
-
-/* ---------- candidatos ---------- */
 function armarCandidatos(){
   CAND = [];
   CATALOGO.forEach(c => c.sesiones.forEach(s => {
-    if (s.bloques.length) CAND.push({key: c.id + '|' + s.id, cliente: c, sesion: s});
+    if (s.bloques.length) CAND.push({cid: c.id, sid: s.id, cliente: c, sesion: s});
   }));
 }
 
-/* ---------- caché ---------- */
-function cacheGuardar(){ try{
-  localStorage.setItem('pf_cache', JSON.stringify({f: CONFIG.fecha || hoy(), m: MODO, d: CATALOGO}));
-}catch(e){} }
-function cacheLeer(){ try{
-  const c = JSON.parse(localStorage.getItem('pf_cache') || 'null');
-  if (c && c.f === (CONFIG.fecha || hoy())) { MODO = c.m || 'catalogo'; return c.d; }
-}catch(e){} return null; }
+/* ---------- caché y sincronización ---------- */
+function guardarEstado(){
+  try { localStorage.setItem('pf_fichas', JSON.stringify(fichas)); } catch(e){}
+  if (canal) canal.postMessage({t: 'estado', fichas});
+}
+function leerEstado(){
+  try { return JSON.parse(localStorage.getItem('pf_fichas') || '[]'); } catch(e){ return []; }
+}
+if (canal) canal.onmessage = ev => {
+  const m = ev.data || {};
+  if (ES_TV && m.t === 'estado'){ fichas = m.fichas || []; render(); }
+  if (!ES_TV && m.t === 'hola')  canal.postMessage({t: 'estado', fichas});
+};
 
-/* ---------- sincronizar ---------- */
+/* ---------- sincronizar con el CMS ---------- */
 async function sincronizar(silencioso){
+  if (ES_TV) return;
   const fecha = CONFIG.fecha || hoy();
   const url = CONFIG.endpointAgenda || CONFIG.endpoint || CONFIG.csv;
-
   if (!url){
-    MODO = 'catalogo';
-    CATALOGO = desdeCatalogo(DEMO);
-    armarCandidatos();
+    MODO = 'catalogo'; CATALOGO = desdeCatalogo(DEMO); armarCandidatos();
     estado('Datos de <b>demostración</b> — configura <b>CONFIG.endpoint</b>', 'off');
     primeraCarga(); return;
   }
-
   if (!silencioso) estado('Consultando…', 'off');
   try {
     const sep = url.includes('?') ? '&' : '?';
-    const r = await fetch(url + sep + 'fecha=' + encodeURIComponent(fecha) + '&_=' + Date.now(),
-                          {cache: 'no-store'});
+    const r = await fetch(url + sep + 'fecha=' + encodeURIComponent(fecha) + '&_=' + Date.now(), {cache:'no-store'});
     if (!r.ok) throw new Error('HTTP ' + r.status);
-
-    if (CONFIG.csv && !CONFIG.endpoint && !CONFIG.endpointAgenda){
-      MODO = 'agenda'; CATALOGO = desdeCSV(await r.text(), fecha);
-    } else {
-      const j = await r.json();
-      // el formato de la respuesta decide el modo
-      if (Array.isArray(j.clientes)) { MODO = 'catalogo'; CATALOGO = desdeCatalogo(j); }
-      else                           { MODO = 'agenda';   CATALOGO = desdeAgenda(j); }
-    }
-
+    const j = await r.json();
+    if (Array.isArray(j.clientes)) { MODO = 'catalogo'; CATALOGO = desdeCatalogo(j); }
+    else                           { MODO = 'agenda';   CATALOGO = desdeAgenda(j); }
     armarCandidatos();
-    cacheGuardar();
-    fichas = fichas.filter(k => cand(k));
-    const hh = new Date().toLocaleTimeString('es-CL', {hour:'2-digit', minute:'2-digit'});
-    estado(`<b>CMS</b> · ${CATALOGO.length} ${MODO === 'catalogo' ? 'clientes' : 'sesiones'} · ${hh}`, '');
+    try { localStorage.setItem('pf_cat', JSON.stringify({f: fecha, m: MODO, d: CATALOGO})); } catch(e){}
+    const hh = new Date().toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'});
+    estado(`<b>CMS</b> · ${CATALOGO.length} ${MODO==='catalogo'?'clientes':'sesiones'} · ${hh}`, '');
     primeraCarga();
-  } catch (e) {
-    const c = cacheLeer();
+  } catch(e){
+    let c = null;
+    try { const x = JSON.parse(localStorage.getItem('pf_cat')||'null');
+          if (x && x.f === fecha){ MODO = x.m; c = x.d; } } catch(_){}
     if (c && !CATALOGO.length){
       CATALOGO = c; armarCandidatos();
-      estado('Sin conexión — mostrando <b>última copia</b>', 'err');
-      primeraCarga();
-    } else {
-      estado('Error al leer: <b>' + esc(e.message) + '</b>', 'err');
-      render();
-    }
+      estado('Sin conexión — mostrando <b>última copia</b>', 'err'); primeraCarga();
+    } else { estado('Error al leer: <b>' + esc(e.message) + '</b>', 'err'); render(); }
   }
 }
-
 function primeraCarga(){
   if (!yaCargo){
     yaCargo = true;
-    if (MODO === 'agenda'){
+    const guardadas = leerEstado();
+    if (guardadas.length) fichas = guardadas;
+    else if (MODO === 'agenda'){
       const h = horaAhora();
       horaSel = (CONFIG.cargarHoraActual && CATALOGO.some(c => c.hora === h)) ? h : 'todas';
-      fichas = deLaHora().slice(0, CAP).map(c => c.id + '|' + c.sesiones[0].id);
-    } else {
-      fichas = [];                       // en catálogo la pantalla arranca vacía
+      deLaHora().slice(0, CAP).forEach(c => nuevaFicha(c, c.sesiones[0]));
     }
-  } else if (MODO === 'agenda' && CONFIG.cargarHoraActual){
-    deLaHora().forEach(c => {
-      const k = c.id + '|' + c.sesiones[0].id;
-      if (fichas.length < CAP && !fichas.includes(k) && !quitados.has(k)) fichas.push(k);
-    });
   }
   pintarCabecera(); pintarHoras(); render(); listar();
 }
-function deLaHora(){
-  return CATALOGO.filter(c => horaSel === 'todas' || c.hora === horaSel);
+function deLaHora(){ return CATALOGO.filter(c => horaSel === 'todas' || c.hora === horaSel); }
+
+/* ---------- fichas ---------- */
+function nuevaFicha(cli, ses, origen){
+  fichas.push({uid: uid(), origen: origen || 'cms', editado: false,
+    cli: {id: cli.id, nombre: cli.nombre, tipo: cli.tipo, profesional: cli.profesional || '',
+          plan: cli.plan || '', objetivo: cli.objetivo || '', hora: cli.hora || ''},
+    ses: clonar({id: ses.id, etiqueta: ses.etiqueta || '', titulo: ses.titulo || '', bloques: ses.bloques})});
+}
+function agregar(cid, sid){
+  const c = CAND.find(x => x.cid === cid && x.sid === sid); if (!c) return;
+  const prev = fichas.findIndex(f => f.cli.id === cid);
+  if (prev < 0 && fichas.length >= CAP){ toast(`Pantalla llena (${CAP})`, true); return; }
+  quitados.delete(cid);
+  if (prev >= 0){ const u = fichas[prev].uid; fichas.splice(prev, 1);
+                  nuevaFicha(c.cliente, c.sesion); const f = fichas.pop(); f.uid = u; fichas.splice(prev, 0, f); }
+  else nuevaFicha(c.cliente, c.sesion);
+  render(); listar();
+}
+function quitar(u){
+  const i = fichas.findIndex(f => f.uid === u); if (i < 0) return;
+  const f = fichas[i];
+  ultimoBorrado = {f: clonar(f), pos: i}; quitados.add(f.cli.id);
+  const el = document.querySelector(`.card[data-u="${u}"]`); if (el) el.classList.add('saliendo');
+  setTimeout(() => { fichas.splice(i,1); render(); listar(); }, 160);
+  toast(`<b>${esc(f.cli.nombre)}</b> salió de la pantalla`);
 }
 
-/* ---------- cabecera ---------- */
+/* ---------- cabecera y horas ---------- */
 function pintarCabecera(){
-  $('#slotHour').textContent = (MODO === 'agenda' && horaSel !== 'todas') ? horaSel : 'HOY';
-  $('#slotDate').textContent = new Date((CONFIG.fecha || hoy()) + 'T12:00:00')
-    .toLocaleDateString('es-CL', {weekday:'long', day:'numeric', month:'long'});
+  const h = (MODO === 'agenda' && horaSel !== 'todas') ? horaSel : 'HOY';
+  const f = new Date((CONFIG.fecha || hoy()) + 'T12:00:00')
+              .toLocaleDateString('es-CL',{weekday:'long',day:'numeric',month:'long'});
+  document.querySelectorAll('#slotHour').forEach(x => x.textContent = h);
+  document.querySelectorAll('#slotDate').forEach(x => x.textContent = f);
 }
 function pintarHoras(){
-  const horas = MODO === 'agenda'
-    ? [...new Set(CATALOGO.map(c => c.hora).filter(Boolean))].sort() : [];
-  if (!horas.length){ $('#horas').innerHTML = ''; $('#horas').style.display = 'none'; return; }
-  $('#horas').style.display = '';
-  $('#horas').innerHTML =
-    `<button data-h="todas" class="${horaSel==='todas'?'on':''}">Todas<i>${CATALOGO.length}</i></button>` +
-    horas.map(h => `<button data-h="${h}" class="${horaSel===h?'on':''}">${h}<i>${
-      CATALOGO.filter(c=>c.hora===h).length}</i></button>`).join('');
+  if (ES_TV) return;
+  const horas = MODO === 'agenda' ? [...new Set(CATALOGO.map(c=>c.hora).filter(Boolean))].sort() : [];
+  const cont = $('#horas');
+  if (!horas.length){ cont.innerHTML=''; cont.style.display='none'; return; }
+  cont.style.display = '';
+  cont.innerHTML = `<button data-h="todas" class="${horaSel==='todas'?'on':''}">Todas<i>${CATALOGO.length}</i></button>` +
+    horas.map(h => `<button data-h="${h}" class="${horaSel===h?'on':''}">${h}<i>${CATALOGO.filter(c=>c.hora===h).length}</i></button>`).join('');
 }
 function cambiarHora(h){
-  horaSel = h; quitados.clear();
-  fichas = deLaHora().slice(0, CAP).map(c => c.id + '|' + c.sesiones[0].id);
+  horaSel = h; quitados.clear(); fichas = [];
+  deLaHora().slice(0, CAP).forEach(c => nuevaFicha(c, c.sesiones[0]));
   pintarCabecera(); pintarHoras(); render(); listar();
 }
 
 /* ---------- markup ---------- */
 function blocksHTML(ses){
-  return '<div class="blocks">' + ses.bloques.map(b => `
+  return '<div class="blocks">' + (ses.bloques||[]).map(b => `
     <div class="blk">
       <div class="blk-head">
         <span class="blk-title">${esc(b.titulo)}</span><span class="blk-line"></span>
@@ -543,277 +667,315 @@ function blocksHTML(ses){
       <ul>${b.ejercicios.map(e => `<li><span class="reps">${esc(e.reps||'·')}</span><span class="ex">${esc(e.nombre)}</span>${e.carga?`<span class="load">${esc(e.carga)}</span>`:''}</li>`).join('')}</ul>
     </div>`).join('') + '</div>';
 }
-function headHTML(c, ses, key){
+function headHTML(f, conBotones){
+  const c = f.cli, s = f.ses;
+  // en una clase de prueba la etiqueta ya suele decir "clase de prueba": no se repite
+  const etiq = (f.origen === 'libre' && /prueba/i.test(s.etiqueta || '')) ? '' : (s.etiqueta || '');
   return `<div class="c-head">
     <div class="c-id">
       <div class="c-name">${esc(c.nombre)}</div>
       <div class="c-sub">
         <span class="tag serv">${c.tipo==='kinesiologia'?'Kinesio':'Entren.'}</span>
-        ${ses.etiqueta?`<span class="tag">${esc(ses.etiqueta)}</span>`:''}
-        ${ses.titulo?`<span class="tag">${esc(ses.titulo)}</span>`:(c.objetivo?`<span class="tag">${esc(c.objetivo)}</span>`:'')}
+        ${etiq?`<span class="tag">${esc(etiq)}</span>`:''}
+        ${s.titulo?`<span class="tag">${esc(s.titulo)}</span>`:(c.objetivo?`<span class="tag">${esc(c.objetivo)}</span>`:'')}
         ${c.hora?`<span class="tag">${esc(c.hora)}</span>`:''}
+        ${f.origen==='libre'?`<span class="tag prueba">Clase de prueba</span>`:''}
+        ${f.editado?`<span class="tag edit">Editada</span>`:''}
       </div>
     </div>
-    ${key?`<button class="c-x" data-x="${esc(key)}" title="Sacar de la pantalla">✕</button>`:''}
+    ${conBotones?`<div class="c-acc">
+       <button class="c-ed" data-ed="${f.uid}" title="Editar planificación">✎</button>
+       <button class="c-x"  data-x="${f.uid}"  title="Sacar de la pantalla">✕</button></div>`:''}
   </div>`;
 }
-function cardHTML(k){
-  const c = cand(k); if (!c) return '';
-  return `<article class="card${c.cliente.tipo==='kinesiologia'?' kin':''}" data-k="${esc(k)}">
-    ${headHTML(c.cliente, c.sesion, k)}<div class="c-body">${blocksHTML(c.sesion)}</div></article>`;
+function cardHTML(f){
+  return `<article class="card${f.cli.tipo==='kinesiologia'?' kin':''}" data-u="${f.uid}">
+    ${headHTML(f, !ES_TV)}<div class="c-body">${blocksHTML(f.ses)}</div></article>`;
 }
 
-/* ---------- columnas ---------- */
-function bestCols(n){
-  if (n <= 0) return 4;
-  let best = 4, bs = -1;
-  for (let k = 2; k <= 6; k++){
-    const rows = Math.ceil(n/k), w = innerWidth/k,
-          h = (innerHeight - (document.body.classList.contains('zen') ? 20 : 64)) / rows;
-    const s = Math.min(w/300, h/210) - Math.abs(k*rows - n) * 0.03;
-    if (s > bs){ bs = s; best = k; }
-  }
-  return best;
-}
-
-/* ---------- empaquetado tetris ---------- */
+/* ---------- empaquetado ---------- */
 const ROW = 6, GAP = 8, FMIN = 7, FMAX = 19;
+function fits(el){ return el.scrollHeight <= el.clientHeight + 1; }
 function altoNatural(card){
   const head = card.querySelector('.c-head'), body = card.querySelector('.c-body');
   const cs = getComputedStyle(body);
   return head.offsetHeight + body.querySelector('.blocks').offsetHeight
        + parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom) + 4;
 }
-function fits(el){ return el.scrollHeight <= el.clientHeight + 1; }
+function tableros(){ return [...document.querySelectorAll('.board')].filter(b => b.querySelector('.card')); }
 function aplicar(fs){
-  const board = $('#board');
-  board.querySelectorAll('.card').forEach(c => c.querySelector('.c-body').style.fontSize = fs.toFixed(2)+'px');
-  board.offsetHeight;
-  board.querySelectorAll('.card').forEach(c => {
+  const bs = tableros();
+  bs.forEach(b => b.querySelectorAll('.card').forEach(c => c.querySelector('.c-body').style.fontSize = fs.toFixed(2)+'px'));
+  if (bs[0]) bs[0].offsetHeight;
+  bs.forEach(b => b.querySelectorAll('.card').forEach(c => {
     c.style.gridRow = 'span ' + Math.max(6, Math.ceil((altoNatural(c)+GAP)/(ROW+GAP)));
-  });
-  const add = board.querySelector('.slot-add');
+  }));
+  const add = document.querySelector('.slot-add');
   if (add) add.style.gridRow = 'span ' + Math.ceil((78+GAP)/(ROW+GAP));
-  return board.scrollHeight <= board.clientHeight + 1;
+  return bs.every(b => b.scrollHeight <= b.clientHeight + 1);
 }
-function mejorTamano(){                       // mayor letra que entra, o null
+function mejorTamano(){
   if (aplicar(FMAX)) return FMAX;
   let lo = FMIN, hi = FMAX, ok = null;
-  for (let i = 0; i < 12; i++){
-    const mid = (lo+hi)/2;
-    if (aplicar(mid)){ ok = mid; lo = mid; } else hi = mid;
-  }
+  for (let i = 0; i < 12; i++){ const m = (lo+hi)/2; if (aplicar(m)){ ok = m; lo = m; } else hi = m; }
   return ok;
 }
-function empaquetar(){
-  const board = $('#board');
-  board.classList.remove('scroll');
-  const n = board.querySelectorAll('.card').length;
-  if (!n) return;
-
-  // prueba varios repartos de columnas y se queda con el que da la letra más grande
-  let mejorCols = null, mejorFs = -1;
-  for (let cols = Math.max(2, Math.min(3, n)); cols <= Math.min(7, Math.max(3, n)); cols++){
-    board.style.setProperty('--cols', cols);
-    const fs = mejorTamano();
-    if (fs !== null && fs > mejorFs + 0.15){ mejorFs = fs; mejorCols = cols; }
-  }
-  if (mejorCols === null){                    // no entra ni al mínimo: se deja scroll
-    board.style.setProperty('--cols', bestCols(n));
-    aplicar(FMIN); board.classList.add('scroll');
-    crecerCadaUna(FMIN); return;
-  }
-  board.style.setProperty('--cols', mejorCols);
-  aplicar(mejorFs);
-  crecerCadaUna(mejorFs);
-}
-
-/* Una vez fijado el alto de cada ficha, la más cargada ya no le impone su
-   tamaño de letra a las demás: cada una crece hasta llenar SU propio espacio. */
 function crecerCadaUna(base){
-  $('#board').querySelectorAll('.card').forEach(card => {
+  tableros().forEach(b => b.querySelectorAll('.card').forEach(card => {
     const body = card.querySelector('.c-body');
     if (!fits(body)) return;
     let lo = base, hi = FMAX, mejor = base;
     for (let i = 0; i < 10; i++){
-      const mid = (lo + hi) / 2;
-      body.style.fontSize = mid.toFixed(2) + 'px';
-      if (fits(body)){ mejor = mid; lo = mid; } else hi = mid;
+      const m = (lo+hi)/2; body.style.fontSize = m.toFixed(2)+'px';
+      if (fits(body)){ mejor = m; lo = m; } else hi = m;
     }
-    body.style.fontSize = mejor.toFixed(2) + 'px';
-  });
+    body.style.fontSize = mejor.toFixed(2)+'px';
+  }));
+}
+function empaquetar(){
+  const b = $('#board'), k = $('#boardKine');
+  b.classList.remove('scroll'); if (k) k.classList.remove('scroll');
+  const n = b.querySelectorAll('.card').length;
+  if (!n && !(k && k.querySelector('.card'))) return;
+  let mejorCols = null, mejorFs = -1;
+  for (let cols = Math.max(2, Math.min(3, n||2)); cols <= Math.min(7, Math.max(3, n||3)); cols++){
+    b.style.setProperty('--cols', cols);
+    const fs = mejorTamano();
+    if (fs !== null && fs > mejorFs + 0.15){ mejorFs = fs; mejorCols = cols; }
+  }
+  if (mejorCols === null){
+    b.style.setProperty('--cols', Math.min(5, Math.max(2, Math.ceil(Math.sqrt(n)))));
+    aplicar(FMIN); tableros().forEach(x => x.classList.add('scroll')); crecerCadaUna(FMIN); return;
+  }
+  b.style.setProperty('--cols', mejorCols);
+  aplicar(mejorFs); crecerCadaUna(mejorFs);
 }
 
 /* ---------- render ---------- */
 function render(){
-  const board = $('#board');
-  const vis = fichas.filter(k => cand(k));
-  board.innerHTML = vis.map(cardHTML).join('') +
-    (vis.length < CAP
-      ? `<button class="slot-add" id="slotAdd"><span class="plus">＋</span><span>${
-          vis.length ? 'Agregar sesión' : 'Buscar la primera sesión'}</span></button>`
-      : '');
-  const cs = vis.map(k => cand(k).cliente);
-  $('#nEnt').textContent = cs.filter(c => c.tipo !== 'kinesiologia').length;
-  $('#nKin').textContent = cs.filter(c => c.tipo === 'kinesiologia').length;
-  requestAnimationFrame(empaquetar);
-}
+  const ent  = fichas.filter(f => f.cli.tipo !== 'kinesiologia');
+  const kine = fichas.filter(f => f.cli.tipo === 'kinesiologia');
+  const usaKine = CONFIG.kineDerecha && kine.length > 0;
 
-/* ---------- quitar / agregar ---------- */
-function quitar(k){
-  const i = fichas.indexOf(k); if (i < 0) return;
-  const c = cand(k);
-  const el = document.querySelector(`.card[data-k="${CSS.escape(k)}"]`);
-  ultimoBorrado = {k, pos: i}; quitados.add(k);
-  if (el) el.classList.add('saliendo');
-  setTimeout(() => { fichas.splice(i,1); render(); listar(); }, 160);
-  toast(`<b>${esc(c ? c.cliente.nombre : '')}</b> salió de la pantalla`);
+  const b = $('#board'), k = $('#boardKine');
+  b.innerHTML = (usaKine ? ent : fichas).map(cardHTML).join('') +
+    (!ES_TV && fichas.length < CAP
+      ? `<button class="slot-add" id="slotAdd"><span class="plus">＋</span><span>${
+          fichas.length ? 'Agregar sesión' : 'Buscar la primera sesión'}</span></button>` : '');
+  k.innerHTML = usaKine ? `<div class="kine-tit">Kinesiología</div>` + kine.map(cardHTML).join('') : '';
+  k.style.display = usaKine ? '' : 'none';
+  // la franja de kinesiología ocupa lo justo: mientras menos gente haya en kine,
+  // más ancho queda para las fichas de entrenamiento.
+  const n = kine.length;
+  k.style.flexBasis = usaKine ? (n > 6 ? '36%' : n > 4 ? '30%' : n > 2 ? '24%' : '17%') : '0';
+  k.style.setProperty('--cols', n > 6 ? 2 : 1);
+
+  $('#nEnt').textContent = ent.length;
+  $('#nKin').textContent = kine.length;
+  requestAnimationFrame(empaquetar);
+  if (!ES_TV) guardarEstado();
 }
-function agregar(k){
-  if (fichas.includes(k)) return;
-  const c = cand(k); if (!c) return;
-  // ¿esta persona ya está proyectada? entonces esto es un CAMBIO de sesión,
-  // que conserva su lugar y no cuenta contra la capacidad
-  const prev = fichas.findIndex(x => cand(x) && cand(x).cliente.id === c.cliente.id);
-  if (prev < 0 && fichas.length >= CAP){ toast(`Pantalla llena (${CAP})`, true); return; }
-  quitados.delete(k);
-  if (prev >= 0) fichas[prev] = k;
-  else           fichas.push(k);
-  render(); listar();
-}
-function cambiarSesion(k){                 // cambia la sesión de una ficha ya proyectada
-  const c = cand(k); if (!c) return;
-  agregar(k); zclose();
-}
-function toast(html, sinUndo){
-  $('#toastTxt').innerHTML = html;
-  $('#toastBtn').style.display = sinUndo ? 'none' : '';
-  $('#toast').classList.add('on');
-  clearTimeout(toastT); toastT = setTimeout(() => $('#toast').classList.remove('on'), 6000);
-}
-$('#toastBtn').onclick = () => {
-  if (!ultimoBorrado) return;
-  fichas.splice(Math.min(ultimoBorrado.pos, fichas.length), 0, ultimoBorrado.k);
-  quitados.delete(ultimoBorrado.k);
-  ultimoBorrado = null; $('#toast').classList.remove('on'); render(); listar();
-};
 
 /* ---------- buscador ---------- */
 function listar(){
+  if (ES_TV) return;
   const q = $('#q').value.trim().toLowerCase();
-  const puestos = new Set(fichas.map(k => cand(k) && cand(k).cliente.id));
-  const libres = CATALOGO
-    .filter(c => !puestos.has(c.id))
+  const puestos = new Set(fichas.map(f => f.cli.id));
+  const libres = CATALOGO.filter(c => !puestos.has(c.id))
     .filter(c => filtro === 'todos' || c.tipo === filtro)
     .filter(c => horaSel === 'todas' || !c.hora || c.hora === horaSel)
-    .filter(c => !q || c.nombre.toLowerCase().includes(q)
-              || (c.objetivo||'').toLowerCase().includes(q)
-              || (c.rut||'').includes(q))
+    .filter(c => !q || c.nombre.toLowerCase().includes(q) || (c.objetivo||'').toLowerCase().includes(q))
     .sort((a,b) => (a.hora||'').localeCompare(b.hora||'') || a.nombre.localeCompare(b.nombre));
-
   $('#shList').innerHTML = libres.length ? libres.map(c => {
     const ses = c.sesiones.filter(s => s.bloques.length);
     return `<div class="row ${c.tipo==='kinesiologia'?'kin':'ent'}">
-      <span class="pill"></span>
-      ${c.hora?`<span class="hr">${esc(c.hora)}</span>`:''}
+      <span class="pill"></span>${c.hora?`<span class="hr">${esc(c.hora)}</span>`:''}
       <span class="nm">${esc(c.nombre)}</span>
-      <span class="mt">${c.tipo==='kinesiologia'?'Kinesiología':'Entrenamiento'}${
-        c.plan?' · '+esc(c.plan):''}${c.profesional?' · '+esc(c.profesional):''}</span>
-      <span class="ses">${ses.map(s =>
-        `<button class="go${s.hecha?' hecha':''}" data-add="${esc(c.id+'|'+s.id)}"
-           title="${esc(s.titulo||'')}${s.hecha?' · ya realizada':''}">${esc(s.etiqueta||'Proyectar')}</button>`
-      ).join('')}</span>
-    </div>`;
-  }).join('') : `<div class="vacio">No hay clientes que coincidan.</div>`;
+      <span class="mt">${c.tipo==='kinesiologia'?'Kinesiología':'Entrenamiento'}${c.plan?' · '+esc(c.plan):''}${c.profesional?' · '+esc(c.profesional):''}</span>
+      <span class="ses">${ses.map(s => `<button class="go${s.hecha?' hecha':''}" data-cid="${esc(c.id)}" data-sid="${esc(s.id)}" title="${esc(s.titulo||'')}">${esc(s.etiqueta)}</button>`).join('')}</span>
+    </div>`; }).join('') : `<div class="vacio">No hay clientes que coincidan.</div>`;
 }
 function abrirBuscador(){
-  $('#shSub').textContent =
-    `${fichas.length} de ${CAP} fichas en pantalla · ${CATALOGO.length} ${MODO==='catalogo'?'clientes con plan':'sesiones del día'}`
-    + (MODO==='agenda' && horaSel!=='todas' ? ` · bloque de las ${horaSel}` : '');
+  $('#shSub').textContent = `${fichas.length} de ${CAP} fichas en pantalla · ${CATALOGO.length} clientes con plan`;
   $('#fuenteTxt').innerHTML = $('#connTxt').innerHTML;
   $('#dotf').className = $('#conn .dotf').className;
-  $('#buscador').classList.add('on'); $('#q').value = ''; listar();
-  setTimeout(() => $('#q').focus(), 40);
+  $('#buscador').classList.add('on'); $('#q').value=''; listar(); setTimeout(()=>$('#q').focus(), 40);
 }
-function cerrarBuscador(){ $('#buscador').classList.remove('on'); }
+const cerrarBuscador = () => $('#buscador').classList.remove('on');
 
-/* ---------- zoom, con cambio de sesión ---------- */
-function zopen(k){
-  const c = cand(k); if (!c) return; zkey = k;
-  const z = $('#zcard');
-  const kin = c.cliente.tipo === 'kinesiologia';
+/* ---------- editor / clase de prueba ---------- */
+function abrirEditor(u){
+  const f = ficha(u); if (!f) return;
+  edUid = u;
+  $('#edTit').textContent = 'Editar planificación';
+  $('#edNombre').value = f.cli.nombre;
+  $('#edNombre').readOnly = f.origen !== 'libre';
+  $('#edTipo').value = f.cli.tipo;
+  $('#edEtiq').value = f.ses.etiqueta || '';
+  $('#edTxt').value = edTxt0 = sesionATexto(f.ses);
+  $('#btnGuardarCMS').style.display = (CONFIG.endpointGuardar && f.origen === 'cms') ? '' : 'none';
+  previa(); $('#editor').classList.add('on'); setTimeout(()=>$('#edTxt').focus(), 40);
+}
+function abrirNueva(){
+  edUid = null;
+  $('#edTit').textContent = 'Clase de prueba — pegar o escribir la planificación';
+  $('#edNombre').value = ''; $('#edNombre').readOnly = false;
+  $('#edTipo').value = 'entrenamiento'; $('#edEtiq').value = 'Clase de prueba';
+  $('#edTxt').value = ''; edTxt0 = null;
+  $('#btnGuardarCMS').style.display = 'none';
+  previa(); cerrarBuscador(); $('#editor').classList.add('on');
+  setTimeout(()=>$('#edNombre').focus(), 40);
+}
+const cerrarEditor = () => { $('#editor').classList.remove('on'); edUid = null; };
+function previa(){
+  const bl = textoASesion($('#edTxt').value);
+  const n = bl.reduce((a,b)=>a+b.ejercicios.length, 0);
+  $('#edInfo').textContent = `${bl.length} bloque${bl.length===1?'':'s'} · ${n} ejercicio${n===1?'':'s'}`;
+  $('#edPrev').innerHTML = bl.length
+    ? `<article class="card${$('#edTipo').value==='kinesiologia'?' kin':''}">
+        <div class="c-head"><div class="c-id"><div class="c-name">${esc($('#edNombre').value||'Sin nombre')}</div>
+          <div class="c-sub"><span class="tag serv">${$('#edTipo').value==='kinesiologia'?'Kinesio':'Entren.'}</span>
+          ${$('#edEtiq').value?`<span class="tag">${esc($('#edEtiq').value)}</span>`:''}</div></div></div>
+        <div class="c-body" style="font-size:13px">${blocksHTML({bloques: bl})}</div></article>`
+    : `<div class="vacio">Escribe o pega la planificación y aquí verás cómo se va a proyectar.</div>`;
+}
+function aplicarEdicion(){
+  // si no se tocó una sola letra del texto, se deja la planificación tal como
+  // vino del CMS: abrir y cerrar el editor nunca debe mover nada en pantalla.
+  const sinTocar = edUid && edTxt0 !== null && $('#edTxt').value === edTxt0;
+  const bl = sinTocar ? (ficha(edUid) || {ses:{bloques:[]}}).ses.bloques
+                      : textoASesion($('#edTxt').value);
+  if (!bl.length){ toast('No hay ejercicios que proyectar', true); return null; }
+  const nombre = $('#edNombre').value.trim() || 'Sin nombre';
+  const tipo = $('#edTipo').value, etiq = $('#edEtiq').value.trim();
+  if (edUid){
+    const f = ficha(edUid); if (!f) return null;
+    f.ses.bloques = bl; f.ses.etiqueta = etiq; f.cli.tipo = tipo;
+    if (f.origen === 'libre') f.cli.nombre = nombre;
+    if (!sinTocar) f.editado = true;
+    render(); return f;
+  }
+  if (fichas.length >= CAP){ toast(`Pantalla llena (${CAP})`, true); return null; }
+  nLibre++;
+  nuevaFicha({id: 'libre-'+nLibre, nombre, tipo, profesional:'', plan:'', objetivo:'', hora:''},
+             {id: 'ls'+nLibre, etiqueta: etiq || 'Clase de prueba', titulo:'', bloques: bl}, 'libre');
+  render(); return fichas[fichas.length-1];
+}
+async function guardarEnCMS(){
+  const f = aplicarEdicion(); if (!f) return;
+  if (!CONFIG.endpointGuardar){ toast('No hay endpoint de guardado configurado', true); cerrarEditor(); return; }
+  toast('Guardando en el CMS…', true);
+  try {
+    const r = await fetch(CONFIG.endpointGuardar, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({cliente_id: f.cli.id, sesion_id: f.ses.id, bloques: f.ses.bloques})
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    f.editado = false;
+    toast(`<b>${esc(f.cli.nombre)}</b> guardado en el CMS`, true);
+    sincronizar(true);
+  } catch(e){ toast('No se pudo guardar: <b>' + esc(e.message) + '</b> — el cambio sigue en pantalla', true); }
+  cerrarEditor();
+}
+
+/* ---------- zoom ---------- */
+function zopen(u){
+  const f = ficha(u); if (!f) return; zkey = u;
+  const z = $('#zcard'), kin = f.cli.tipo === 'kinesiologia';
   z.style.setProperty('--acc', kin ? 'var(--kin)' : 'var(--ent)');
   z.style.setProperty('--acc-txt', kin ? 'var(--kin-txt)' : 'var(--ent-txt)');
-  const otras = c.cliente.sesiones.filter(s => s.bloques.length && s.id !== c.sesion.id);
-  z.innerHTML = headHTML(c.cliente, c.sesion, null)
+  const cli = CATALOGO.find(c => c.id === f.cli.id);
+  const otras = cli ? cli.sesiones.filter(s => s.bloques.length && s.id !== f.ses.id) : [];
+  z.innerHTML = headHTML(f, false)
     + (otras.length ? `<div class="zswitch"><span>Cambiar sesión:</span>${
-        otras.map(s => `<button data-sw="${esc(c.cliente.id+'|'+s.id)}">${esc(s.etiqueta)}${
-          s.titulo?` · ${esc(s.titulo)}`:''}</button>`).join('')}</div>` : '')
-    + `<div class="c-body">${blocksHTML(c.sesion)}</div>`;
-  $('#zoom').classList.add('on'); $('#zclose').style.display = 'block';
+        otras.map(s => `<button data-cid="${esc(cli.id)}" data-sid="${esc(s.id)}">${esc(s.etiqueta)}${s.titulo?' · '+esc(s.titulo):''}</button>`).join('')}</div>` : '')
+    + `<div class="c-body">${blocksHTML(f.ses)}</div>`;
+  $('#zoom').classList.add('on'); $('#zclose').style.display='block';
 }
-function zclose(){ $('#zoom').classList.remove('on'); $('#zclose').style.display = 'none'; zkey = null; }
+const zclose = () => { $('#zoom').classList.remove('on'); $('#zclose').style.display='none'; zkey=null; };
 
-/* ---------- eventos ---------- */
-$('#board').addEventListener('click', e => {
-  const x = e.target.closest('[data-x]');
-  if (x){ e.stopPropagation(); quitar(x.dataset.x); return; }
-  if (e.target.closest('#slotAdd')) return abrirBuscador();
-  const card = e.target.closest('.card'); if (card) zopen(card.dataset.k);
-});
-$('#shList').addEventListener('click', e => {
-  const r = e.target.closest('[data-add]');
-  if (r){ agregar(r.dataset.add); if (fichas.length >= CAP) cerrarBuscador(); }
-});
-$('#zcard').addEventListener('click', e => {
-  const b = e.target.closest('[data-sw]'); if (b) cambiarSesion(b.dataset.sw);
-});
-$('#q').addEventListener('input', listar);
-$('#filtros').addEventListener('click', e => {
-  const b = e.target.closest('button'); if (!b) return;
-  filtro = b.dataset.f;
-  [...$('#filtros').children].forEach(x => x.classList.toggle('on', x === b));
-  listar();
-});
-$('#horas').addEventListener('click', e => { const b = e.target.closest('button'); if (b) cambiarHora(b.dataset.h); });
-$('#btnAdd').onclick = abrirBuscador;
-$('#btnSync').onclick = () => sincronizar();
-$('#buscador').addEventListener('click', e => { if (e.target.id === 'buscador') cerrarBuscador(); });
-$('#zoom').addEventListener('click', e => { if (e.target.id === 'zoom') zclose(); });
-$('#zclose').onclick = zclose;
-$('#btnAll').onclick = () => { fichas = []; quitados.clear(); render(); listar(); };
-function zen(){ document.body.classList.toggle('zen'); requestAnimationFrame(render); }
-$('#btnZen').onclick = zen; $('#zenout').onclick = zen;
+/* ---------- avisos ---------- */
+function toast(html, sinUndo){
+  if (ES_TV) return;
+  $('#toastTxt').innerHTML = html;
+  $('#toastBtn').style.display = sinUndo ? 'none' : '';
+  $('#toast').classList.add('on');
+  clearTimeout(toastT); toastT = setTimeout(()=>$('#toast').classList.remove('on'), 6000);
+}
 
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape'){ zclose(); cerrarBuscador(); return; }
-  if (document.activeElement === $('#q')) return;
-  if (e.key === 'a' || e.key === 'A' || e.key === '+'){ e.preventDefault(); abrirBuscador(); }
-  if (e.key === 'z' || e.key === 'Z') zen();
-});
-let rz; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(render, 120); });
+/* ============================================================
+   EVENTOS  (solo en la vista de control)
+   ============================================================ */
+if (!ES_TV){
+  document.addEventListener('click', e => {
+    const x  = e.target.closest('[data-x]');   if (x){ e.stopPropagation(); return quitar(x.dataset.x); }
+    const ed = e.target.closest('[data-ed]');  if (ed){ e.stopPropagation(); return abrirEditor(ed.dataset.ed); }
+    if (e.target.closest('#slotAdd')) return abrirBuscador();
+    const add = e.target.closest('#shList [data-cid]');
+    if (add){ agregar(add.dataset.cid, add.dataset.sid); if (fichas.length >= CAP) cerrarBuscador(); return; }
+    const sw = e.target.closest('#zcard [data-cid]');
+    if (sw){ agregar(sw.dataset.cid, sw.dataset.sid); zclose(); return; }
+    const card = e.target.closest('#board .card, #boardKine .card');
+    if (card) return zopen(card.dataset.u);
+  });
+  $('#q').addEventListener('input', listar);
+  $('#filtros').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    filtro = b.dataset.f; [...$('#filtros').children].forEach(x => x.classList.toggle('on', x===b)); listar();
+  });
+  $('#horas').addEventListener('click', e => { const b = e.target.closest('button'); if (b) cambiarHora(b.dataset.h); });
+  $('#btnAdd').onclick = abrirBuscador;
+  $('#btnSync').onclick = () => sincronizar();
+  $('#btnPrueba').onclick = abrirNueva;
+  $('#btnTV').onclick = () => {
+    const w = open(location.pathname + '?tv=1', 'pf_tv', 'width=1280,height=720');
+    setTimeout(() => canal && canal.postMessage({t:'estado', fichas}), 900);
+    if (w) w.focus();
+  };
+  $('#btnAll').onclick = () => { fichas = []; quitados.clear(); render(); listar(); };
+  $('#buscador').addEventListener('click', e => { if (e.target.id === 'buscador') cerrarBuscador(); });
+  $('#zoom').addEventListener('click', e => { if (e.target.id === 'zoom') zclose(); });
+  $('#zclose').onclick = zclose;
+  $('#edTxt').addEventListener('input', previa);
+  ['#edNombre','#edTipo','#edEtiq'].forEach(s => $(s).addEventListener('input', previa));
+  $('#btnAplicar').onclick = () => { if (aplicarEdicion()) cerrarEditor(); };
+  $('#btnGuardarCMS').onclick = guardarEnCMS;
+  $('#btnCancelar').onclick = cerrarEditor;
+  $('#toastBtn').onclick = () => {
+    if (!ultimoBorrado) return;
+    fichas.splice(Math.min(ultimoBorrado.pos, fichas.length), 0, ultimoBorrado.f);
+    quitados.delete(ultimoBorrado.f.cli.id);
+    ultimoBorrado = null; $('#toast').classList.remove('on'); render(); listar();
+  };
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape'){ zclose(); cerrarBuscador(); cerrarEditor(); return; }
+    const esc = ['INPUT','TEXTAREA','SELECT'].includes((document.activeElement||{}).tagName);
+    if (esc) return;
+    if (e.key === 'a' || e.key === 'A' || e.key === '+'){ e.preventDefault(); abrirBuscador(); }
+    if (e.key === 'n' || e.key === 'N'){ e.preventDefault(); abrirNueva(); }
+    if (e.key === 'p' || e.key === 'P'){ e.preventDefault(); $('#btnTV').click(); }
+  });
+}
+if (ES_TV){
+  document.body.classList.add('tv');
+  fichas = leerEstado();
+  if (canal) canal.postMessage({t:'hola'});
+  addEventListener('storage', e => { if (e.key === 'pf_fichas'){ fichas = leerEstado(); render(); } });
+}
 
-/* ---------- reloj ---------- */
+let rz; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(render, 150); });
 function reloj(){ const n = new Date();
-  $('#clock').textContent = String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0'); }
+  document.querySelectorAll('#clock').forEach(x =>
+    x.textContent = String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')); }
 setInterval(reloj, 1000); reloj();
 pintarCabecera();
-
 render();
-sincronizar(false);
+if (!ES_TV){
+  sincronizar(false);
+  if (CONFIG.refrescoSegundos > 0 && (CONFIG.endpoint || CONFIG.endpointAgenda || CONFIG.csv))
+    refT = setInterval(() => sincronizar(true), CONFIG.refrescoSegundos * 1000);
+}
 
-/* ---------- app instalable ---------- */
-if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
-let instalador = null;
-addEventListener('beforeinstallprompt', e => {
-  e.preventDefault(); instalador = e;
-  const b = document.createElement('button');
-  b.className = 'btn'; b.textContent = '⬇ Instalar app';
-  b.onclick = async () => { instalador.prompt(); await instalador.userChoice; b.remove(); };
-  document.querySelector('#btnZen').before(b);
-});
-if (CONFIG.refrescoSegundos > 0 && (CONFIG.endpoint || CONFIG.endpointAgenda || CONFIG.csv))
-  refT = setInterval(() => sincronizar(true), CONFIG.refrescoSegundos * 1000);
 </script>
 </body>
 </html>
