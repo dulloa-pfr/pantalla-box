@@ -19,7 +19,7 @@ window.PF_CONFIG = {
 
   // Tablero compartido entre computadores del centro. Con esto vacío, cada
   // computador tiene su propio tablero y todo funciona como hasta ahora.
-  endpointEstado: "",
+  endpointEstado: "https://patagonia-fit-cms.onrender.com/api/pantalla/estado?token=879ef46a17512913fe60762bf6d6b13fec40cac3",
 
   // Cada cuántos segundos se consulta el tablero compartido.
   segundosEstado: 4,
