@@ -66,6 +66,26 @@
   .btn kbd{font-size:9.5px;opacity:.6;border:1px solid currentColor;border-radius:3px;padding:0 3px;line-height:13px}
   .clock{font-variant-numeric:tabular-nums;font-size:22px;font-weight:900;letter-spacing:-.5px;flex:0 0 auto}
 
+  /* La barra nunca puede cortarse. Si no cabe, se va compactando por niveles
+     hasta que entra: primero se van los atajos, después los textos largos,
+     después el detalle de la conexión, y al final la leyenda y la fecha. */
+  /* El orden importa: primero se sacrifica lo decorativo y lo redundante,
+     y los nombres de los botones son lo ÚLTIMO que se abrevia, porque son
+     lo que la profesional lee cuando anda apurada. */
+  .btn .corta{display:none}
+  header.c1 .btn kbd{display:none}                      /* atajos de teclado */
+  header.c2 #connTxt{display:none}                      /* detalle de conexión (queda el punto) */
+  header.c2 .conn{padding:6px 9px}
+  header.c3 .clock{display:none}                        /* el reloj del sistema ya está */
+  header.c4 .slot .meta{display:none}                   /* la fecha */
+  header.c5{gap:11px}
+  header.c5 .legend{display:none}                       /* los contadores */
+  header.c5 .sep{display:none}
+  header.c6{gap:8px}
+  header.c6 .btn .larga{display:none}                   /* último recurso: solo íconos */
+  header.c6 .btn .corta{display:inline}
+  header.c6 .btn{padding:8px 10px}
+
   /* ================= TABLERO (empaquetado tetris) ================= */
   main{flex:1;min-height:0;position:relative;display:flex;align-items:stretch}
   .board{height:100%;overflow:hidden;display:grid;gap:8px;padding:9px 11px 11px;
@@ -273,12 +293,12 @@
     <div class="horas" id="horas"></div>
     <div class="spacer"></div>
     <div class="conn" id="conn" title="Origen de los datos"><span class="dotf off"></span><span id="connTxt">—</span></div>
-    <button class="btn primary" id="btnAdd">＋ Buscar sesión <kbd>A</kbd></button>
-    <button class="btn" id="btnPrueba">✎ Clase de prueba <kbd>N</kbd></button>
+    <button class="btn primary" id="btnAdd" title="Buscar la sesión de un cliente (A)"><span class="larga">＋ Buscar sesión</span><span class="corta">＋</span> <kbd>A</kbd></button>
+    <button class="btn" id="btnPrueba" title="Clase de prueba: escribir o pegar una planificación (N)"><span class="larga">✎ Clase de prueba</span><span class="corta">✎</span> <kbd>N</kbd></button>
     <button class="btn" id="btnNTV" title="Repartir las fichas en uno o dos televisores">▣ Un televisor</button>
     <button class="btn tv" id="btnTV">▣ Abrir pantalla del box <kbd>P</kbd></button>
     <button class="btn tv" id="btnTV2" style="display:none">▣ Abrir TV 2</button>
-    <button class="btn" id="btnAll">Vaciar</button>
+    <button class="btn" id="btnAll" title="Sacar a todos de la pantalla"><span class="larga">Vaciar</span><span class="corta">⌫</span></button>
     <div class="clock" id="clock">--:--</div>
   </header>
   <main>
@@ -377,6 +397,8 @@ const CONFIG = Object.assign({
   endpoint: "",              // catálogo de clientes con plan activo
   endpointAgenda: "",        // fase 2: sesiones agendadas del día
   endpointGuardar: "",       // POST para guardar ediciones en el CMS
+  endpointEstado: "",        // tablero compartido entre computadores (GET + POST)
+  segundosEstado: 4,         // cada cuánto se pregunta por el tablero compartido
   csv: "",
   fecha: "",                 // vacío = hoy
   refrescoSegundos: 300,
@@ -604,6 +626,108 @@ function armarCandidatos(){
 function guardarEstado(){
   try { localStorage.setItem('pf_fichas', JSON.stringify(fichas)); } catch(e){}
   if (canal) canal.postMessage({t: 'estado', fichas});
+  empujarEstado();
+}
+
+/* ============================================================
+   TABLERO COMPARTIDO ENTRE COMPUTADORES  (CONFIG.endpointEstado)
+   Sin endpoint, la pantalla funciona igual que siempre: un solo
+   computador manda y se sincroniza con su TV por BroadcastChannel.
+   Con endpoint, cualquier computador del centro ve y maneja el mismo
+   tablero. El control de versión evita que dos personas trabajando a
+   la vez se borren el trabajo entre ellas.
+   ============================================================ */
+let vEstado = 0;          // versión que este computador cree tener
+let ultServidor = [];     // fichas tal como estaban la última vez que hablamos con el servidor
+let empujeT = null, tirandoT = null, empujando = false;
+// Hasta no haber leído el tablero del servidor, este computador NO publica nada.
+// Sin esto, abrir la pantalla en un segundo equipo borraba el tablero de todos:
+// el render inicial publicaba su estado vacío antes de enterarse del compartido.
+let estadoListo = false;
+// Huella del último tablero que sabemos que está en el servidor. Sin esto,
+// cada consulta provocaba un guardado y cada guardado otra consulta: un bucle
+// de escrituras infinito. Solo se publica cuando el tablero cambió de verdad.
+let ultEnviado = null;
+const huella = () => JSON.stringify({nTV, fichas});
+
+const uids = fs => new Set((fs || []).map(f => f.uid));
+
+async function pedirEstado(){
+  if (!CONFIG.endpointEstado) return null;
+  try {
+    const r = await fetch(CONFIG.endpointEstado, {cache: 'no-store'});
+    if (!r.ok) return null;
+    return await r.json();
+  } catch(e){ return null; }
+}
+
+// adopta lo que hay en el servidor, salvo que sea de otro día
+function adoptar(j){
+  if (!j) return false;
+  vEstado = j.version || 0;
+  if (j.fecha && j.fecha !== hoy()){ fichas = []; ultServidor = []; ultEnviado = null; return true; }
+  fichas = j.fichas || [];
+  ultServidor = clonar(fichas);
+  ultEnviado = null;
+  if (!ES_TV && j.nTV && +j.nTV !== nTV){
+    nTV = +j.nTV === 2 ? 2 : 1;
+    try { localStorage.setItem('pf_ntv', nTV); } catch(e){}
+    pintarBotonesTV();
+  }
+  ultEnviado = huella();
+  return true;
+}
+
+function empujarEstado(){
+  if (!CONFIG.endpointEstado || ES_TV || !estadoListo) return;
+  if (huella() === ultEnviado) return;        // no cambió nada: no se molesta al servidor
+  clearTimeout(empujeT);
+  empujeT = setTimeout(enviarEstado, 400);    // se agrupan los cambios seguidos
+}
+
+async function enviarEstado(reintento){
+  if (!CONFIG.endpointEstado || ES_TV || empujando) return;
+  empujando = true;
+  const mias = clonar(fichas), hue = huella();
+  try {
+    const r = await fetch(CONFIG.endpointEstado, {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({fecha: hoy(), version: vEstado, nTV, fichas: mias})
+    });
+    if (r.ok){
+      const j = await r.json().catch(() => ({}));
+      vEstado = j.version != null ? j.version : vEstado + 1;
+      ultServidor = mias; ultEnviado = hue;
+    } else if (r.status === 409 && !reintento){
+      // Otro computador escribió primero. En vez de perder lo que acaba de
+      // hacer la profesional, se toma el tablero del servidor y se le vuelven
+      // a aplicar sus altas y sus bajas, identificadas por uid.
+      const j = await r.json().catch(() => null);
+      if (j){
+        const antes = uids(ultServidor), ahora = uids(mias);
+        const agregadas = mias.filter(f => !antes.has(f.uid));
+        const quitadas  = [...antes].filter(u => !ahora.has(u));
+        const base = (j.fichas || []).filter(f => !quitadas.includes(f.uid));
+        const yaEstan = uids(base);
+        fichas = base.concat(agregadas.filter(f => !yaEstan.has(f.uid))).slice(0, CAP);
+        vEstado = j.version || 0;
+        ultServidor = clonar(fichas);
+        render();
+        empujando = false;
+        return enviarEstado(true);
+      }
+    }
+  } catch(e){ /* sin conexión: se reintenta en la próxima consulta */ }
+  empujando = false;
+}
+
+async function tirarEstado(){
+  if (!CONFIG.endpointEstado) return;
+  const j = await pedirEstado();
+  if (!j || j.version == null) return;
+  if (j.version === vEstado) return;              // nada nuevo
+  if (!ES_TV && empujando) return;                // hay un envío en curso
+  if (adoptar(j)) render();
 }
 function leerEstado(){
   try { return JSON.parse(localStorage.getItem('pf_fichas') || '[]'); } catch(e){ return []; }
@@ -693,9 +817,35 @@ function cambiarNumeroTV(){
 }
 function pintarBotonesTV(){
   if (ES_TV) return;
-  $('#btnNTV').innerHTML = nTV === 1 ? '▣ Un televisor' : '▣▣ Dos televisores';
-  $('#btnTV').innerHTML  = nTV === 1 ? '▣ Abrir pantalla del box <kbd>P</kbd>' : '▣ Abrir TV 1';
-  $('#btnTV2').style.display = nTV === 2 ? '' : 'none';
+  const b = $('#btnNTV'), t1 = $('#btnTV'), t2 = $('#btnTV2');
+  b.innerHTML = nTV === 1
+    ? '<span class="larga">▣ Un televisor</span><span class="corta">▣</span>'
+    : '<span class="larga">▣▣ Dos televisores</span><span class="corta">▣▣</span>';
+  b.title = nTV === 1 ? 'Repartir las fichas en dos televisores' : 'Volver a un solo televisor';
+  t1.innerHTML = nTV === 1
+    ? '<span class="larga">▣ Abrir pantalla del box</span><span class="corta">TV</span> <kbd>P</kbd>'
+    : '<span class="larga">▣ Abrir TV 1</span><span class="corta">TV 1</span>';
+  t1.title = 'Abrir la ventana que va en el televisor (P)';
+  t2.innerHTML = '<span class="larga">▣ Abrir TV 2</span><span class="corta">TV 2</span>';
+  t2.title = 'Abrir la ventana del segundo televisor';
+  t2.style.display = nTV === 2 ? '' : 'none';
+  ajustarBarra();
+}
+
+/* La barra de arriba nunca debe cortarse: se compacta por niveles hasta que entra. */
+function ajustarBarra(){
+  if (ES_TV) return;
+  const h = document.querySelector('header');
+  if (!h) return;
+  h.className = '';
+  for (const c of ['c1','c2','c3','c4','c5','c6']){
+    // scrollWidth nunca baja de clientWidth, así que el desborde se mide con el
+    // borde derecho real del último elemento visible, no con scrollWidth.
+    const vis = [...h.children].filter(e => e.offsetParent !== null);
+    const der = vis.length ? vis[vis.length-1].getBoundingClientRect().right : 0;
+    if (h.scrollWidth <= h.clientWidth && der <= innerWidth - 12) return;
+    h.classList.add(c);
+  }
 }
 function agregar(cid, sid){
   const c = CAND.find(x => x.cid === cid && x.sid === sid); if (!c) return;
@@ -873,6 +1023,7 @@ function render(){
 
   $('#nEnt').textContent = ent.length;
   $('#nKin').textContent = kine.length;
+  ajustarBarra();
   requestAnimationFrame(empaquetar);
   if (!ES_TV) guardarEstado();
 }
@@ -1074,14 +1225,20 @@ if (ES_TV){
   addEventListener('storage', e => { if (e.key === 'pf_fichas'){ fichas = leerEstado(); render(); } });
 }
 
-let rz; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(render, 150); });
+let rz; addEventListener('resize', () => { ajustarBarra(); clearTimeout(rz); rz = setTimeout(render, 150); });
 function reloj(){ const n = new Date();
   document.querySelectorAll('#clock').forEach(x =>
     x.textContent = String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')); }
 setInterval(reloj, 1000); reloj();
 pintarCabecera();
-if (!ES_TV) pintarBotonesTV();
+if (!ES_TV){ pintarBotonesTV(); ajustarBarra(); }
 render();
+if (CONFIG.endpointEstado){
+  pedirEstado()
+    .then(j => { if (adoptar(j)) render(); })
+    .finally(() => { estadoListo = true; });
+  tirandoT = setInterval(tirarEstado, Math.max(2, CONFIG.segundosEstado) * 1000);
+} else estadoListo = true;
 if (!ES_TV){
   sincronizar(false);
   if (CONFIG.refrescoSegundos > 0 && (CONFIG.endpoint || CONFIG.endpointAgenda || CONFIG.csv))

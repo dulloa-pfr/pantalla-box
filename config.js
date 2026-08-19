@@ -17,6 +17,13 @@ window.PF_CONFIG = {
   // Fase 2, cuando se agende entrenamiento en el CMS. Por ahora vacío.
   endpointAgenda: "",
 
+  // Tablero compartido entre computadores del centro. Con esto vacío, cada
+  // computador tiene su propio tablero y todo funciona como hasta ahora.
+  endpointEstado: "",
+
+  // Cada cuántos segundos se consulta el tablero compartido.
+  segundosEstado: 4,
+
   // Cuánta gente cabe en la pantalla a la vez.
   capacidad: 15,
 
