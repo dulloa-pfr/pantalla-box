@@ -725,6 +725,10 @@ async function tirarEstado(){
   if (!CONFIG.endpointEstado) return;
   const j = await pedirEstado();
   if (!j || j.version == null) return;
+  if (!estadoListo){                              // primera lectura buena tras un fallo
+    if (adoptar(j)) render();
+    estadoListo = true; return;
+  }
   if (j.version === vEstado) return;              // nada nuevo
   if (!ES_TV && empujando) return;                // hay un envío en curso
   if (adoptar(j)) render();
@@ -1194,7 +1198,19 @@ if (!ES_TV){
   $('#btnTV').onclick  = () => abrirTV(1);
   $('#btnTV2').onclick = () => abrirTV(2);
   $('#btnNTV').onclick = cambiarNumeroTV;
-  $('#btnAll').onclick = () => { fichas = []; quitados.clear(); render(); listar(); };
+  // "Vaciar" borra el tablero de TODOS los computadores y de los dos televisores
+  // a la vez. Es la única acción irreversible de la pantalla, así que pregunta
+  // antes y se puede deshacer.
+  $('#btnAll').onclick = () => {
+    const n = fichas.length;
+    if (!n) return;
+    const dos = nTV === 2 ? ' y de los dos televisores' : '';
+    if (!confirm(`Vas a sacar a ${n} ${n === 1 ? 'persona' : 'personas'} de la pantalla${dos}.\n\n` +
+                 `Esto afecta a todos los computadores a la vez. ¿Seguro?`)) return;
+    ultimoBorrado = {tablero: clonar(fichas), quitados: [...quitados]};
+    fichas = []; quitados.clear(); render(); listar();
+    toast(`Pantalla vaciada — <b>${n} ${n === 1 ? 'ficha' : 'fichas'}</b> fuera`);
+  };
   $('#buscador').addEventListener('click', e => { if (e.target.id === 'buscador') cerrarBuscador(); });
   $('#zoom').addEventListener('click', e => { if (e.target.id === 'zoom') zclose(); });
   $('#zclose').onclick = zclose;
@@ -1205,8 +1221,13 @@ if (!ES_TV){
   $('#btnCancelar').onclick = cerrarEditor;
   $('#toastBtn').onclick = () => {
     if (!ultimoBorrado) return;
-    fichas.splice(Math.min(ultimoBorrado.pos, fichas.length), 0, ultimoBorrado.f);
-    quitados.delete(ultimoBorrado.f.cli.id);
+    if (ultimoBorrado.tablero){                 // se deshace un "Vaciar" completo
+      fichas = ultimoBorrado.tablero;
+      quitados = new Set(ultimoBorrado.quitados || []);
+    } else {                                    // se deshace una sola ficha
+      fichas.splice(Math.min(ultimoBorrado.pos, fichas.length), 0, ultimoBorrado.f);
+      quitados.delete(ultimoBorrado.f.cli.id);
+    }
     ultimoBorrado = null; $('#toast').classList.remove('on'); render(); listar();
   };
   document.addEventListener('keydown', e => {
@@ -1234,9 +1255,11 @@ pintarCabecera();
 if (!ES_TV){ pintarBotonesTV(); ajustarBarra(); }
 render();
 if (CONFIG.endpointEstado){
-  pedirEstado()
-    .then(j => { if (adoptar(j)) render(); })
-    .finally(() => { estadoListo = true; });
+  // Solo se habilita publicar si de verdad se pudo LEER el tablero. Si la
+  // lectura falla —sesión caída, corte, CORS—, este computador se queda
+  // mirando y no escribe: publicar un tablero vacío que nunca se leyó
+  // borraría el de todos los demás.
+  pedirEstado().then(j => { if (j){ if (adoptar(j)) render(); estadoListo = true; } });
   tirandoT = setInterval(tirarEstado, Math.max(2, CONFIG.segundosEstado) * 1000);
 } else estadoListo = true;
 if (!ES_TV){
