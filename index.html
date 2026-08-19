@@ -116,6 +116,11 @@
   .c-name{font-size:16px;font-weight:900;letter-spacing:-.3px;line-height:1.12;color:var(--blanco);
           overflow-wrap:anywhere}
   .c-sub{display:flex;gap:4px;margin-top:4px;flex-wrap:wrap}
+  /* Una sola línea bajo el nombre: "Entrenamiento / Día 1". Ocupa un tercio
+     de lo que ocupaban las etiquetas sueltas, y ese alto se convierte en letra. */
+  .c-meta{margin-top:2px;font-size:9.5px;font-weight:800;letter-spacing:.5px;
+          text-transform:uppercase;color:var(--acc-txt);white-space:nowrap;
+          overflow:hidden;text-overflow:ellipsis}
   .tag{font-size:8.5px;font-weight:900;letter-spacing:.7px;text-transform:uppercase;
        padding:2px 6px;border-radius:4px;white-space:nowrap;
        background:color-mix(in srgb,var(--acc) 18%,transparent);
@@ -263,6 +268,14 @@
                 font-size:12px;font-weight:900;cursor:pointer}
 
   body.tv .c-tv{display:none !important}
+  /* Sin barras: todo el alto de la ventana para las planificaciones. */
+  body.zen header{display:none}
+  body.zen .hint{display:none}
+  #zenSalir{position:fixed;top:8px;right:12px;z-index:55;display:none;font-size:10.5px;
+            font-weight:800;color:var(--txt-3);background:rgba(29,29,27,.9);
+            border:1px solid var(--line);padding:5px 9px;border-radius:7px;cursor:pointer}
+  body.zen #zenSalir{display:block}
+  body.zen.tv #zenSalir{display:none}
   .hint{position:absolute;bottom:8px;left:15px;font-size:10.5px;color:var(--txt-3);pointer-events:none}
   .hint b{color:var(--txt-2)}
 
@@ -295,6 +308,7 @@
     <div class="conn" id="conn" title="Origen de los datos"><span class="dotf off"></span><span id="connTxt">—</span></div>
     <button class="btn primary" id="btnAdd" title="Buscar la sesión de un cliente (A)"><span class="larga">＋ Buscar sesión</span><span class="corta">＋</span> <kbd>A</kbd></button>
     <button class="btn" id="btnPrueba" title="Clase de prueba: escribir o pegar una planificación (N)"><span class="larga">✎ Clase de prueba</span><span class="corta">✎</span> <kbd>N</kbd></button>
+    <button class="btn" id="btnZen" title="Esconder la barra y el pie para ganar espacio (Z)"><span class="larga">▭ Ocultar barras</span><span class="corta">▭</span></button>
     <button class="btn" id="btnNTV" title="Repartir las fichas en uno o dos televisores">▣ Un televisor</button>
     <button class="btn tv" id="btnTV">▣ Abrir pantalla del box <kbd>P</kbd></button>
     <button class="btn tv" id="btnTV2" style="display:none">▣ Abrir TV 2</button>
@@ -304,7 +318,7 @@
   <main>
     <div class="board" id="board"></div>
     <aside class="board" id="boardKine"></aside>
-    <div class="hint">Clic en una ficha la agranda · <b>✎</b> edita la planificación · <b>✕</b> la saca y el resto se reacomoda · con dos televisores, <b>TV 1</b>/<b>TV 2</b> pasa a la persona de una pantalla a la otra · lo que buscas aquí <b>no se ve en el TV</b></div>
+    <div class="hint">Clic en una ficha la agranda · <b>Z</b> esconde las barras y da más alto a las fichas · <b>✎</b> edita la planificación · <b>✕</b> la saca y el resto se reacomoda · con dos televisores, <b>TV 1</b>/<b>TV 2</b> pasa a la persona de una pantalla a la otra · lo que buscas aquí <b>no se ve en el TV</b></div>
   </main>
 </div>
 
@@ -380,6 +394,7 @@ movilidad de cadera x20
 
 <div id="zoom"><div class="zcard" id="zcard"></div></div>
 <button class="zclose" id="zclose">✕</button>
+<button id="zenSalir" title="Volver a mostrar la barra">▤ barras (Z)</button>
 <div id="toast"><span id="toastTxt"></span><button id="toastBtn">Deshacer</button></div>
 
 <!-- La configuración vive aparte, en config.js. Ese archivo se edita una vez
@@ -428,9 +443,13 @@ let fichas = [];              // fichas materializadas (permite editarlas)
 let quitados = new Set();
 let horaSel = 'todas', filtro = 'todos', zkey = null, edUid = null, edTxt0 = null;
 let ultimoBorrado = null, toastT = null, refT = null, yaCargo = false, nLibre = 0;
+let zen = false;              // sin barra de arriba ni pie: todo el alto para las fichas
+try { zen = localStorage.getItem('pf_zen') === '1'; } catch(e){}
 let nTV = 1;                  // 1 = un televisor · 2 = dos televisores
 try { nTV = +(localStorage.getItem('pf_ntv')) === 2 ? 2 : 1; } catch(e){}
-const CAP = CONFIG.capacidad;
+// El tope es por televisor: con dos pantallas caben el doble de personas.
+// Se calcula, no es constante, porque nTV cambia en caliente.
+const cap = () => CONFIG.capacidad * (nTV === 2 ? 2 : 1);
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -709,7 +728,7 @@ async function enviarEstado(reintento){
         const quitadas  = [...antes].filter(u => !ahora.has(u));
         const base = (j.fichas || []).filter(f => !quitadas.includes(f.uid));
         const yaEstan = uids(base);
-        fichas = base.concat(agregadas.filter(f => !yaEstan.has(f.uid))).slice(0, CAP);
+        fichas = base.concat(agregadas.filter(f => !yaEstan.has(f.uid))).slice(0, cap());
         vEstado = j.version || 0;
         ultServidor = clonar(fichas);
         render();
@@ -738,6 +757,7 @@ function leerEstado(){
 }
 if (canal) canal.onmessage = ev => {
   const m = ev.data || {};
+  if (m.t === 'zen'){ zen = !!m.zen; try{localStorage.setItem('pf_zen', zen?'1':'0');}catch(e){} aplicarZen(); }
   if (ES_TV && m.t === 'estado'){ fichas = m.fichas || []; render(); }
   if (!ES_TV && m.t === 'hola')  canal.postMessage({t: 'estado', fichas});
 };
@@ -783,7 +803,7 @@ function primeraCarga(){
     else if (MODO === 'agenda'){
       const h = horaAhora();
       horaSel = (CONFIG.cargarHoraActual && CATALOGO.some(c => c.hora === h)) ? h : 'todas';
-      deLaHora().slice(0, CAP).forEach(c => nuevaFicha(c, c.sesiones[0]));
+      deLaHora().slice(0, cap()).forEach(c => nuevaFicha(c, c.sesiones[0]));
     }
   }
   pintarCabecera(); pintarHoras(); render(); listar();
@@ -819,6 +839,23 @@ function cambiarNumeroTV(){
          fichas.forEach((f, i) => f.tv = i < Math.ceil(fichas.length / 2) ? 1 : 2); }
   pintarBotonesTV(); render(); listar();
 }
+// Esconde la barra de arriba y el texto de abajo para ganar alto. Se propaga
+// a las ventanas de televisor del mismo computador.
+function aplicarZen(){
+  document.body.classList.toggle('zen', zen);
+  const b = $('#btnZen');
+  if (b) b.innerHTML = zen
+    ? '<span class="larga">▤ Mostrar barras</span><span class="corta">▤</span>'
+    : '<span class="larga">▭ Ocultar barras</span><span class="corta">▭</span>';
+  ajustarBarra(); render();
+}
+function cambiarZen(){
+  zen = !zen;
+  try { localStorage.setItem('pf_zen', zen ? '1' : '0'); } catch(e){}
+  if (canal) canal.postMessage({t: 'zen', zen});
+  aplicarZen();
+}
+
 function pintarBotonesTV(){
   if (ES_TV) return;
   const b = $('#btnNTV'), t1 = $('#btnTV'), t2 = $('#btnTV2');
@@ -854,7 +891,7 @@ function ajustarBarra(){
 function agregar(cid, sid){
   const c = CAND.find(x => x.cid === cid && x.sid === sid); if (!c) return;
   const prev = fichas.findIndex(f => f.cli.id === cid);
-  if (prev < 0 && fichas.length >= CAP){ toast(`Pantalla llena (${CAP})`, true); return; }
+  if (prev < 0 && fichas.length >= cap()){ toast(`Pantalla llena (${cap()})`, true); return; }
   quitados.delete(cid);
   if (prev >= 0){ const u = fichas[prev].uid; fichas.splice(prev, 1);
                   nuevaFicha(c.cliente, c.sesion); const f = fichas.pop(); f.uid = u; fichas.splice(prev, 0, f); }
@@ -889,7 +926,7 @@ function pintarHoras(){
 }
 function cambiarHora(h){
   horaSel = h; quitados.clear(); fichas = [];
-  deLaHora().slice(0, CAP).forEach(c => nuevaFicha(c, c.sesiones[0]));
+  deLaHora().slice(0, cap()).forEach(c => nuevaFicha(c, c.sesiones[0]));
   pintarCabecera(); pintarHoras(); render(); listar();
 }
 
@@ -904,6 +941,21 @@ function blocksHTML(ses){
       <ul>${b.ejercicios.map(e => `<li><span class="reps">${esc(e.reps||'·')}</span><span class="ex">${esc(e.nombre)}</span>${e.carga?`<span class="load">${esc(e.carga)}</span>`:''}</li>`).join('')}</ul>
     </div>`).join('') + '</div>';
 }
+// Una sola línea bajo el nombre, para no gastar alto de tarjeta:
+//   "Entrenamiento / Día 1"   ·   "Kinesiología / Clase de prueba"
+function metaLinea(f){
+  const c = f.cli, s = f.ses;
+  const serv = c.tipo === 'kinesiologia' ? 'Kinesiología' : 'Entrenamiento';
+  const partes = [serv];
+  if (f.origen === 'libre') partes.push('Clase de prueba');
+  else {
+    const etiq = s.rotulo || s.titulo || s.etiqueta || '';
+    if (etiq) partes.push(etiq);
+    else if (c.objetivo) partes.push(c.objetivo);
+  }
+  if (f.editado) partes.push('editada');
+  return partes.join(' / ');
+}
 function headHTML(f, conBotones){
   const c = f.cli, s = f.ses;
   // en una clase de prueba la etiqueta ya suele decir "clase de prueba": no se repite
@@ -914,14 +966,7 @@ function headHTML(f, conBotones){
   return `<div class="c-head">
     <div class="c-id">
       <div class="c-name">${esc(c.nombre)}</div>
-      <div class="c-sub">
-        <span class="tag serv">${c.tipo==='kinesiologia'?'Kinesio':'Entren.'}</span>
-        ${etiq?`<span class="tag dia">${esc(etiq)}</span>`:''}
-        ${(!s.titulo && c.objetivo)?`<span class="tag">${esc(c.objetivo)}</span>`:''}
-        ${c.hora?`<span class="tag">${esc(c.hora)}</span>`:''}
-        ${f.origen==='libre'?`<span class="tag prueba">Clase de prueba</span>`:''}
-        ${f.editado?`<span class="tag edit">Editada</span>`:''}
-      </div>
+      <div class="c-meta">${esc(metaLinea(f))}</div>
     </div>
     ${conBotones?`<div class="c-acc">
        ${nTV === 2 ? `<button class="c-tv" data-tv="${f.uid}" title="Pasar al otro televisor">TV ${f.tv || 1}</button>` : ''}
@@ -1014,7 +1059,7 @@ function render(){
 
   const b = $('#board'), k = $('#boardKine');
   b.innerHTML = (usaKine ? ent : propias).map(cardHTML).join('') +
-    (!ES_TV && fichas.length < CAP
+    (!ES_TV && fichas.length < cap()
       ? `<button class="slot-add" id="slotAdd"><span class="plus">＋</span><span>${
           fichas.length ? 'Agregar sesión' : 'Buscar la primera sesión'}</span></button>` : '');
   k.innerHTML = usaKine ? `<div class="kine-tit">Kinesiología</div>` + kine.map(cardHTML).join('') : '';
@@ -1052,7 +1097,7 @@ function listar(){
     </div>`; }).join('') : `<div class="vacio">No hay clientes que coincidan.</div>`;
 }
 function abrirBuscador(){
-  $('#shSub').textContent = `${fichas.length} de ${CAP} fichas en pantalla · ${CATALOGO.length} clientes con plan`;
+  $('#shSub').textContent = `${fichas.length} de ${cap()} fichas en pantalla · ${CATALOGO.length} clientes con plan`;
   $('#fuenteTxt').innerHTML = $('#connTxt').innerHTML;
   $('#dotf').className = $('#conn .dotf').className;
   $('#buscador').classList.add('on'); $('#q').value=''; listar(); setTimeout(()=>$('#q').focus(), 40);
@@ -1065,7 +1110,10 @@ function abrirEditor(u){
   edUid = u;
   $('#edTit').textContent = 'Editar planificación';
   $('#edNombre').value = f.cli.nombre;
-  $('#edNombre').readOnly = f.origen !== 'libre';
+  // El nombre se puede acortar para la proyección — "Alessander Ríos" ocupa
+  // dos líneas y "Alessander" una. Es solo para la pantalla: la ficha se
+  // materializó al agregarla, así que el CMS no se entera.
+  $('#edNombre').readOnly = false;
   $('#edTipo').value = f.cli.tipo;
   $('#edEtiq').value = f.ses.etiqueta || '';
   $('#edTxt').value = edTxt0 = sesionATexto(f.ses);
@@ -1113,11 +1161,14 @@ function aplicarEdicion(){
   if (edUid){
     const f = ficha(edUid); if (!f) return null;
     f.ses.bloques = bl; f.ses.etiqueta = etiq; f.cli.tipo = tipo;
-    if (f.origen === 'libre') f.cli.nombre = nombre;
-    if (!sinTocar) f.editado = true;
+    // El nombre se aplica siempre: acortarlo es para que quepa mejor en la
+    // proyección. La ficha es una copia, así que el CMS no se toca.
+    const cambioNombre = f.cli.nombre !== nombre;
+    f.cli.nombre = nombre;
+    if (!sinTocar || cambioNombre) f.editado = true;
     render(); return f;
   }
-  if (fichas.length >= CAP){ toast(`Pantalla llena (${CAP})`, true); return null; }
+  if (fichas.length >= cap()){ toast(`Pantalla llena (${cap()})`, true); return null; }
   nLibre++;
   nuevaFicha({id: 'libre-'+nLibre, nombre, tipo, profesional:'', plan:'', objetivo:'', hora:''},
              {id: 'ls'+nLibre, etiqueta: etiq || 'Clase de prueba', titulo:'', bloques: bl}, 'libre');
@@ -1175,7 +1226,7 @@ if (!ES_TV){
     const tv = e.target.closest('[data-tv]');  if (tv){ e.stopPropagation(); return cambiarTV(tv.dataset.tv); }
     if (e.target.closest('#slotAdd')) return abrirBuscador();
     const add = e.target.closest('#shList [data-cid]');
-    if (add){ agregar(add.dataset.cid, add.dataset.sid); if (fichas.length >= CAP) cerrarBuscador(); return; }
+    if (add){ agregar(add.dataset.cid, add.dataset.sid); if (fichas.length >= cap()) cerrarBuscador(); return; }
     const sw = e.target.closest('#zcard [data-cid]');
     if (sw){ agregar(sw.dataset.cid, sw.dataset.sid); zclose(); return; }
     const card = e.target.closest('#board .card, #boardKine .card');
@@ -1198,6 +1249,8 @@ if (!ES_TV){
   $('#btnTV').onclick  = () => abrirTV(1);
   $('#btnTV2').onclick = () => abrirTV(2);
   $('#btnNTV').onclick = cambiarNumeroTV;
+  $('#btnZen').onclick = cambiarZen;
+  $('#zenSalir').onclick = cambiarZen;
   // "Vaciar" borra el tablero de TODOS los computadores y de los dos televisores
   // a la vez. Es la única acción irreversible de la pantalla, así que pregunta
   // antes y se puede deshacer.
@@ -1237,6 +1290,7 @@ if (!ES_TV){
     if (e.key === 'a' || e.key === 'A' || e.key === '+'){ e.preventDefault(); abrirBuscador(); }
     if (e.key === 'n' || e.key === 'N'){ e.preventDefault(); abrirNueva(); }
     if (e.key === 'p' || e.key === 'P'){ e.preventDefault(); $('#btnTV').click(); }
+    if (e.key === 'z' || e.key === 'Z'){ e.preventDefault(); cambiarZen(); }
   });
 }
 if (ES_TV){
@@ -1253,6 +1307,7 @@ function reloj(){ const n = new Date();
 setInterval(reloj, 1000); reloj();
 pintarCabecera();
 if (!ES_TV){ pintarBotonesTV(); ajustarBarra(); }
+document.body.classList.toggle('zen', zen);
 render();
 if (CONFIG.endpointEstado){
   // Solo se habilita publicar si de verdad se pudo LEER el tablero. Si la
