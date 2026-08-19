@@ -1,7 +1,7 @@
 /* Patagonia Fit — service worker
    La app queda cacheada: si se cae internet, la pantalla igual abre.
    Las sesiones de Google Sheets siempre se piden a la red (nunca del caché). */
-const CACHE = 'pf-pantalla-v13';   /* subir este número en CADA cambio de index.html, si no el PC del box sigue mostrando la versión vieja */
+const CACHE = 'pf-pantalla-v14';   /* subir este número en CADA cambio de index.html, si no el PC del box sigue mostrando la versión vieja */
 const BASE = ['./', './index.html', './manifest.webmanifest',
               './config.js', './icon-192.png', './icon-512.png', './icon-maskable-512.png'];
 

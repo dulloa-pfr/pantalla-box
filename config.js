@@ -39,3 +39,35 @@ window.PF_CONFIG = {
   // Cada cuántos segundos se vuelve a preguntar al CMS. 0 = nunca.
   refrescoSegundos: 300
 };
+
+/* ============================================================
+   La pantalla manda la sesión del CMS junto con sus peticiones.
+   ------------------------------------------------------------
+   `fetch` no envía cookies a otro sitio salvo que se le pida con
+   credentials: 'include'. Esto lo añade a las llamadas que van al
+   CMS, y solo a esas.
+
+   Vive aquí y no en index.html a propósito: index.html se
+   reemplaza entero en cada versión de la pantalla, y este cambio
+   se perdería en la siguiente. Este archivo no se reemplaza nunca.
+
+   Cuando una versión de la pantalla traiga credentials: 'include'
+   de fábrica en sus cuatro fetch, este bloque se puede borrar.
+   ============================================================ */
+(function () {
+  var cfg = window.PF_CONFIG || {};
+  var url = cfg.endpoint || cfg.endpointGuardar || cfg.endpointEstado || "";
+  if (!url) return;                      // sin CMS configurado no hay nada que hacer
+  var origen;
+  try { origen = new URL(url).origin; } catch (e) { return; }
+
+  var original = window.fetch;
+  window.fetch = function (entrada, opciones) {
+    var destino = typeof entrada === "string" ? entrada
+                : (entrada && entrada.url) ? entrada.url : "";
+    if (destino.indexOf(origen) === 0) {
+      opciones = Object.assign({}, opciones || {}, { credentials: "include" });
+    }
+    return original.call(this, entrada, opciones);
+  };
+})();
