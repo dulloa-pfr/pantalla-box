@@ -20,7 +20,7 @@ de cada cliente y lo proyecta uno por uno.
 
 | | |
 |---|---|
-| Pantalla | **v17 publicada.** Control en el computador, proyección en uno o dos televisores |
+| Pantalla | **v18 publicada.** Control en el computador, proyección en uno o dos televisores |
 | Tablero compartido | **Sí.** Dos computadores del centro manejan el mismo televisor |
 | Editor en la pantalla | **Sí.** Entrenamiento sobrescribe; kinesiología versiona |
 | Configuración | En `pantalla/config.js`, **aparte del `index.html`** |
@@ -236,6 +236,17 @@ una verdad.
   token. Se separó del `index.html` justamente para dejar de rescatarlas a mano
   en cada versión, que es un paso que un día se olvida y deja la pantalla en
   datos de demostración sin que nadie lo note.
+- **Volver a deducir el modo por descarte.** El modo agenda se *prueba*; no es
+  lo que queda cuando la respuesta no trae `clientes`. Escribirlo como
+  `if (clientes) … else agenda` parece más corto y es un defecto: cualquier
+  respuesta 200 que no sea el catálogo —una sesión caducada, un error con
+  formato raro, media respuesta— entra por agenda, **se guarda así en `pf_cat`**
+  y desde ahí se restaura en cada recuperación sin conexión. Con pantallas que
+  llevan días abiertas, una sola respuesta rara deja el modo equivocado puesto
+  para siempre, y con él los chips de hora, que son el camino a vaciar el
+  tablero. Agenda además exige `CONFIG.endpointAgenda`: sin él no es un estado
+  legítimo, ni siquiera restaurándolo de una copia vieja. Lo que no es ninguna
+  de las dos cosas es **un error**, y se muestra como error.
 - Renombrar o mover archivos dentro de `pantalla/`. Las rutas de `sw.js`, el
   manifiesto y los íconos son relativas y se rompen.
 - Agregar un framework, un bundler o dependencias npm. La pantalla corre en un
@@ -289,6 +300,45 @@ escribe.
 ---
 
 ## Registro de correcciones
+
+**21-08-2026 — v18: el arranque guardaba el tablero vacío encima del bueno.**
+Anterior a todo lo demás y encontrado al construir la recarga automática. En el
+arranque `render()` corre **antes** de que se hayan leído los datos, y `render()`
+guarda: escribía la lista vacía sobre `pf_fichas`, así que cuando `primeraCarga`
+iba a leerla ya no había nada. Con el tablero compartido el daño quedaba tapado
+—al segundo siguiente se adopta el del servidor—, pero **sin tablero compartido, o
+con el CMS caído, cada `F5` vaciaba la pantalla**. Medido: 3 → 0 antes, 3 → 3
+después. Es candidato serio a parte de los "se borró todo" reportados.
+
+Comprobado que restaurar del disco no rompe el tablero compartido: si el servidor
+responde, `adoptar` pisa las fichas con las suyas (tablero vaciado por otro
+computador → este queda en 0 y **no resucita a nadie**); si no responde,
+`estadoListo` se queda en `false` y este computador no publica nada.
+
+**21-08-2026 — v18: la pantalla detecta que hay versión nueva y se recarga sola.**
+Cierra el pendiente 10. Lee el nombre de caché de `sw.js` —el número que se sube
+en cada publicación— y lo compara con el que había al arrancar; no hace falta
+inventar ningún archivo ni número nuevo. **Espera a que sea inofensivo**: nada
+abierto (buscador, editor, zoom) y nada pendiente de publicar. Los televisores se
+recargan siempre: solo dibujan. El número de versión se ve abajo a la izquierda,
+que hasta ahora no había forma de saberlo sin pasar por la consola.
+
+Dos cosas salieron de revisarlo antes de subirlo: la sonda pide `sw.js` cada
+minuto con un parámetro distinto, y el service worker guardaba **toda** respuesta
+GET —~1.400 copias al día en una pantalla abierta—, así que `sw.js` ahora se sirve
+de la red y no se guarda; y se le puso un **freno de dos minutos**, porque
+mientras se propaga una publicación el servidor puede entregar el `index.html`
+viejo junto al `sw.js` nuevo, y sin freno eso es un televisor recargándose cada
+cinco segundos delante de la clase.
+
+**21-08-2026 — v18: el modo agenda se prueba, no se deduce por descarte.** Ver la
+regla en "Cosas que NO hay que hacer". Era la rama `else`, así que cualquier
+respuesta 200 sin `clientes` entraba por agenda y quedaba guardada así. Ahora
+agenda exige `Array.isArray(j.sesiones)` **y** `CONFIG.endpointAgenda`, una copia
+vieja no puede resucitarla, y lo que no es ninguna de las dos cosas es un error.
+Verificado: con un 200 que dice `{"error":"sesión expirada"}` la pantalla se queda
+en catálogo, sin chips y en rojo; y con `pf_cat` envenenado a `agenda` y la red
+caída, también.
 
 **21-08-2026 — el "día" proyectado no era el del CMS y la planificación llegaba
 incompleta.** Reportado desde el box. Dos causas, las dos en el endpoint:
@@ -545,7 +595,12 @@ lanzar uno a mano.
    12. Si la pantalla del box es de 1366×768, la decisión ya está tomada por los
    números: 15 no caben, 12 sí.
 
-10. **La pantalla no sabe que hay una versión nueva.** Las pantallas de los
+10. ~~**La pantalla no sabe que hay una versión nueva.**~~ **Resuelto en la v18.**
+    Queda una sola cosa por hacer a mano, y solo esta vez: las pantallas abiertas
+    hoy no tienen la pieza que detecta la versión, así que **hay que cerrarlas y
+    reabrirlas una última vez** en todos los computadores. Desde ahí se actualizan
+    solas.
+    El texto original: Las pantallas de los
     profesionales quedan abiertas todo el día y no se recargan nunca, así que
     siguen corriendo la versión con la que se abrieron. Por eso un arreglo
     publicado no llega a quien lo necesita, y por eso el mismo día conviven

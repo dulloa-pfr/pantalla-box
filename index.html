@@ -318,7 +318,7 @@
   <main>
     <div class="board" id="board"></div>
     <aside class="board" id="boardKine"></aside>
-    <div class="hint">Clic en una ficha la agranda · <b>Z</b> esconde las barras y da más alto a las fichas · <b>✎</b> edita la planificación · <b>✕</b> la saca y el resto se reacomoda · con dos televisores, <b>TV 1</b>/<b>TV 2</b> pasa a la persona de una pantalla a la otra · lo que buscas aquí <b>no se ve en el TV</b></div>
+    <div class="hint">Clic en una ficha la agranda · <b>Z</b> esconde las barras y da más alto a las fichas · <b>✎</b> edita la planificación · <b>✕</b> la saca y el resto se reacomoda · con dos televisores, <b>TV 1</b>/<b>TV 2</b> pasa a la persona de una pantalla a la otra · lo que buscas aquí <b>no se ve en el TV</b> · <span id="ver" style="display:none"></span></div>
   </main>
 </div>
 
@@ -786,8 +786,17 @@ async function sincronizar(silencioso){
     const r = await fetch(url + sep + 'fecha=' + encodeURIComponent(fecha) + '&_=' + Date.now(), {cache:'no-store'});
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const j = await r.json();
-    if (Array.isArray(j.clientes)) { MODO = 'catalogo'; CATALOGO = desdeCatalogo(j); }
-    else                           { MODO = 'agenda';   CATALOGO = desdeAgenda(j); }
+    // El modo agenda tiene que PROBARSE, no deducirse por descarte. Antes era la
+    // rama "else": cualquier respuesta 200 sin "clientes" —un error con formato
+    // raro, una página de inicio de sesión, media respuesta— pasaba por agenda,
+    // se guardaba así en pf_cat y desde entonces se restauraba de ahí en cada
+    // recuperación sin conexión. Con pantallas que llevan días abiertas, una
+    // sola respuesta rara dejaba el modo equivocado puesto para siempre.
+    // Además se exige endpointAgenda: sin él, agenda no es un estado legítimo.
+    const puedeAgenda = !!CONFIG.endpointAgenda;
+    if (Array.isArray(j.clientes))                     { MODO = 'catalogo'; CATALOGO = desdeCatalogo(j); }
+    else if (puedeAgenda && Array.isArray(j.sesiones)) { MODO = 'agenda';   CATALOGO = desdeAgenda(j); }
+    else throw new Error('respuesta inesperada del CMS (sin "clientes")');
     armarCandidatos();
     try { localStorage.setItem('pf_cat', JSON.stringify({f: fecha, m: MODO, d: CATALOGO})); } catch(e){}
     const hh = new Date().toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'});
@@ -796,7 +805,9 @@ async function sincronizar(silencioso){
   } catch(e){
     let c = null;
     try { const x = JSON.parse(localStorage.getItem('pf_cat')||'null');
-          if (x && x.f === fecha){ MODO = x.m; c = x.d; } } catch(_){}
+          // una copia vieja no puede resucitar el modo agenda si no hay agenda
+          if (x && x.f === fecha){ MODO = (x.m === 'agenda' && CONFIG.endpointAgenda) ? 'agenda' : 'catalogo';
+                                   c = x.d; } } catch(_){}
     if (c && !CATALOGO.length){
       CATALOGO = c; armarCandidatos();
       estado('Sin conexión — mostrando <b>última copia</b>', 'err'); primeraCarga();
@@ -1338,9 +1349,71 @@ function reloj(){ const n = new Date();
   document.querySelectorAll('#clock').forEach(x =>
     x.textContent = String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')); }
 setInterval(reloj, 1000); reloj();
+
+/* ============================================================
+   VERSIÓN NUEVA PUBLICADA
+   Una pestaña abierta todo el día NUNCA vuelve a cargar la aplicación:
+   sigue ejecutando el código que tenía cuando se abrió, aunque se publique
+   encima. En el box eso significa que las correcciones no llegan a quien las
+   necesita, y que conviven versiones distintas hablando con el mismo tablero.
+   Aquí se mira el nombre de caché de sw.js —el número que se sube en cada
+   publicación— y se compara con el que había al arrancar. No hace falta
+   inventar ningún archivo ni ningún número nuevo.
+   ============================================================ */
+let versionInicial = null, avisoVersion = false;
+const dialogoAbierto = () => ['#buscador','#editor','#zoom']
+  .some(s => { const e = $(s); return e && e.classList.contains('on'); });
+
+async function mirarVersion(){
+  try {
+    const r = await fetch('./sw.js?_=' + Date.now(), {cache: 'no-store'});
+    if (!r.ok) return;
+    const m = /const\s+CACHE\s*=\s*['"]([^'"]+)['"]/.exec(await r.text());
+    if (!m) return;
+    if (versionInicial === null){ versionInicial = m[1]; pintarVersion(); return; }
+    if (m[1] === versionInicial) return;
+    avisoVersion = true; pintarVersion(); quizasRecargar();
+  } catch(e){ /* sin conexión: no se hace nada, se reintenta después */ }
+}
+// Recargar en mitad de una edición sería peor que la enfermedad. Se espera a
+// que no haya nada abierto y a que no quede nada por publicar: si el tablero de
+// este computador ya está en el servidor, recargar no pierde absolutamente nada
+// —al volver se adopta el del servidor—, y si no hay tablero compartido, las
+// fichas viven en localStorage y también sobreviven.
+function quizasRecargar(){
+  if (!avisoVersion) return;
+  if (!ES_TV){
+    if (dialogoAbierto()) return;
+    if (CONFIG.endpointEstado && (!estadoListo || empujando || huella() !== ultEnviado)) return;
+  }
+  // En los segundos en que se propaga una publicación, el servidor puede
+  // alcanzar a entregar el index viejo junto al sw.js nuevo. Sin este freno,
+  // eso sería un televisor del box recargándose cada cinco segundos. Se recarga
+  // una vez y no se vuelve a intentar hasta pasados dos minutos.
+  try {
+    const t = +(sessionStorage.getItem('pf_recarga') || 0);
+    if (Date.now() - t < 120000) return;
+    sessionStorage.setItem('pf_recarga', String(Date.now()));
+  } catch(e){}
+  location.reload();
+}
+function pintarVersion(){
+  const e = $('#ver'); if (!e) return;
+  e.textContent = avisoVersion ? 'versión nueva publicada — recargando…'
+                               : (versionInicial || '');
+  e.style.display = versionInicial ? '' : 'none';
+}
+setInterval(mirarVersion, 60000); mirarVersion();
+setInterval(quizasRecargar, 5000);
+
 pintarCabecera();
 if (!ES_TV){ pintarBotonesTV(); ajustarBarra(); }
 document.body.classList.toggle('zen', zen);
+// El render de aquí abajo GUARDA el tablero, y corre antes de que se hayan
+// leído los datos. Sin esta línea escribía la lista vacía encima de la copia
+// buena, y al llegar primeraCarga ya no había nada que recuperar: recargar la
+// página —o que se recargue sola— borraba el tablero del computador.
+if (!ES_TV) fichas = leerEstado();
 render();
 if (CONFIG.endpointEstado){
   // Solo se habilita publicar si de verdad se pudo LEER el tablero. Si la

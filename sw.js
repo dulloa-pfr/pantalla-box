@@ -1,7 +1,7 @@
 /* Patagonia Fit — service worker
    La app queda cacheada: si se cae internet, la pantalla igual abre.
    Las sesiones de Google Sheets siempre se piden a la red (nunca del caché). */
-const CACHE = 'pf-pantalla-v17';   /* subir este número en CADA cambio de index.html, si no el PC del box sigue mostrando la versión vieja */
+const CACHE = 'pf-pantalla-v18';   /* subir este número en CADA cambio de index.html, si no el PC del box sigue mostrando la versión vieja */
 const BASE = ['./', './index.html', './manifest.webmanifest',
               './config.js', './icon-192.png', './icon-512.png', './icon-maskable-512.png'];
 
@@ -25,7 +25,13 @@ self.addEventListener('fetch', e => {
     return;
   }
   if (e.request.method !== 'GET') return;
+  // La sonda de versión pide este mismo archivo cada minuto, con un parámetro
+  // distinto cada vez. Si se guardaran, una pantalla abierta todo el día dejaría
+  // miles de copias en el caché (solo se limpia cuando cambia el número, o sea
+  // cuando se publica). Se sirve de la red y no se guarda.
+  const esSonda = url.pathname.endsWith('/sw.js');
   e.respondWith(
+    esSonda ? fetch(e.request) :
     fetch(e.request)
       .then(r => { const cp = r.clone(); caches.open(CACHE).then(c => c.put(e.request, cp)); return r; })
       .catch(() => caches.match(e.request).then(r => r || caches.match('./index.html')))
