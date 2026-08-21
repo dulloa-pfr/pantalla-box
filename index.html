@@ -271,7 +271,7 @@
   /* Sin barras: todo el alto de la ventana para las planificaciones. */
   body.zen header{display:none}
   body.zen .hint{display:none}
-  #zenSalir{position:fixed;top:8px;right:12px;z-index:55;display:none;font-size:10.5px;
+  #zenSalir{position:fixed;bottom:8px;right:12px;z-index:55;display:none;font-size:10.5px;
             font-weight:800;color:var(--txt-3);background:rgba(29,29,27,.9);
             border:1px solid var(--line);padding:5px 9px;border-radius:7px;cursor:pointer}
   body.zen #zenSalir{display:block}
@@ -483,7 +483,11 @@ function limpiaBloques(bs){
     titulo: b.titulo || '', rondas: b.rondas || '',
     ejercicios: (b.ejercicios || []).filter(e => e && e.nombre)
       .map(e => ({reps: e.reps || '', nombre: e.nombre, carga: e.carga || ''}))
-  })).filter(b => b.ejercicios.length);
+  // Un bloque sin filas NO está vacío si tiene título: hay coaches que escriben
+  // la prescripción entera en el nombre del bloque ("CARDIO EMOM 9' 10 WALL
+  // BALL / 30 S SKY PULL") y dejan las filas en blanco. Descartarlos borraba de
+  // la pantalla la parte de cardio de la sesión, sin que nadie pudiera notarlo.
+  })).filter(b => b.ejercicios.length || b.titulo);
 }
 
 /* ============================================================
@@ -565,7 +569,10 @@ function textoASesion(txt){
     // si el bloque quedó vacío porque su única fila eran las rondas, se devuelve
     // esa fila: vale más una tarjeta rara que una tarjeta que perdió un bloque.
     if (!ejercicios.length && absorbida){ rondas = ''; ejercicios.push(absorbida); }
-    if (ejercicios.length) bloques.push({titulo, rondas, ejercicios});
+    // Un bloque cuya prescripción entera vive en el título no tiene ejercicios y
+    // no por eso está vacío. Sin esta condición, editar y guardar una sesión de
+    // cardio la devolvía al CMS sin su cardio.
+    if (ejercicios.length || titulo) bloques.push({titulo, rondas, ejercicios});
   });
   return bloques;
 }
@@ -574,6 +581,7 @@ function sesionATexto(ses){
     const cab = [b.titulo, b.rondas].filter(Boolean).join(' ');
     const filas = b.ejercicios.map(e =>
       [ [e.reps, e.nombre].filter(Boolean).join(' '), e.carga ].filter(Boolean).join(' | '));
+    if (!filas.length) return cab ? '# ' + cab : '';
     return (cab ? '# ' + cab + '\n' : '') + filas.join('\n');
   }).join('\n\n');
 }
@@ -932,14 +940,27 @@ function cambiarHora(h){
 
 /* ---------- markup ---------- */
 function blocksHTML(ses){
-  return '<div class="blocks">' + (ses.bloques||[]).map(b => `
+  return '<div class="blocks">' + (ses.bloques||[]).map(b => {
+    // Cuando el bloque no trae filas, su título no es un rótulo: es la
+    // prescripción completa. Se pinta como línea de ejercicio, no como
+    // encabezado, por dos razones. Se lee mejor a la distancia — el estilo de
+    // encabezado es versalita apretada, pensado para "BLOQUE A", no para una
+    // frase de sesenta caracteres — y así lo mide el ajuste automático de letra
+    // junto con todo lo demás, en vez de escapársele por un costado.
+    // No pasa por separaReps a propósito: "3 min de bici - 3 min trote" saldría
+    // partido en reps "3min" + "de bici - 3 min trote". Aquí no hay nada que
+    // extraer, el texto ya es la prescripción y se muestra tal cual.
+    if (!b.ejercicios.length && b.titulo)
+      return `<div class="blk"><ul><li><span class="reps">${esc(b.rondas||'·')}</span><span class="ex">${esc(b.titulo)}</span></li></ul></div>`;
+    return `
     <div class="blk">
       <div class="blk-head">
         <span class="blk-title">${esc(b.titulo)}</span><span class="blk-line"></span>
         ${b.rondas?`<span class="rounds">${esc(b.rondas)}</span>`:''}
       </div>
       <ul>${b.ejercicios.map(e => `<li><span class="reps">${esc(e.reps||'·')}</span><span class="ex">${esc(e.nombre)}</span>${e.carga?`<span class="load">${esc(e.carga)}</span>`:''}</li>`).join('')}</ul>
-    </div>`).join('') + '</div>';
+    </div>`;
+  }).join('') + '</div>';
 }
 // Una sola línea bajo el nombre, para no gastar alto de tarjeta:
 //   "Entrenamiento / Día 1"   ·   "Kinesiología / Clase de prueba"
