@@ -808,7 +808,13 @@ function primeraCarga(){
     yaCargo = true;
     const guardadas = leerEstado();
     if (guardadas.length) fichas = guardadas;
-    else if (MODO === 'agenda'){
+    // El llenado automático es de la fase 2 (agenda) y NO debe poder ocurrir
+    // mientras no haya endpoint de agenda configurado. Es el único código de
+    // toda la aplicación capaz de poner a mucha gente en pantalla de una vez,
+    // así que se exige la condición explícita y no solo el modo deducido: si
+    // MODO llegara a decir 'agenda' por un dato raro o por una copia vieja en
+    // localStorage, esto igual no se dispara.
+    else if (MODO === 'agenda' && CONFIG.endpointAgenda){
       const h = horaAhora();
       horaSel = (CONFIG.cargarHoraActual && CATALOGO.some(c => c.hora === h)) ? h : 'todas';
       deLaHora().slice(0, cap()).forEach(c => nuevaFicha(c, c.sesiones[0]));
@@ -933,6 +939,12 @@ function pintarHoras(){
     horas.map(h => `<button data-h="${h}" class="${horaSel===h?'on':''}">${h}<i>${CATALOGO.filter(c=>c.hora===h).length}</i></button>`).join('');
 }
 function cambiarHora(h){
+  // Misma razón que en primeraCarga: esto vacía el tablero y lo vuelve a llenar
+  // con el catálogo entero cuando la hora es "todas". Sin agenda configurada no
+  // tiene nada que hacer, y sin esta guarda un solo clic borra el tablero de
+  // todos los computadores y proyecta a quien no toca.
+  if (!(MODO === 'agenda' && CONFIG.endpointAgenda)) return;
+  ultimoBorrado = {tablero: clonar(fichas), quitados: [...quitados]};
   horaSel = h; quitados.clear(); fichas = [];
   deLaHora().slice(0, cap()).forEach(c => nuevaFicha(c, c.sesiones[0]));
   pintarCabecera(); pintarHoras(); render(); listar();
