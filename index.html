@@ -85,6 +85,11 @@
   header.c6 .btn .larga{display:none}                   /* último recurso: solo íconos */
   header.c6 .btn .corta{display:inline}
   header.c6 .btn{padding:8px 10px}
+  /* El camino de vuelta no se sacrifica nunca. Vivía dentro de #connTxt, que se
+     esconde en cuanto la barra no cabe —justo en el PC del box, a 1366— así que
+     el botón desaparecía exactamente cuando hacía falta. */
+  #reentrar{border-color:var(--magenta);color:#fff;background:var(--magenta)}
+  #reentrar:hover{filter:brightness(1.15);color:#fff}
 
   /* ================= TABLERO (empaquetado tetris) ================= */
   main{flex:1;min-height:0;position:relative;display:flex;align-items:stretch}
@@ -306,6 +311,7 @@
     <div class="horas" id="horas"></div>
     <div class="spacer"></div>
     <div class="conn" id="conn" title="Origen de los datos"><span class="dotf off"></span><span id="connTxt">—</span></div>
+    <button class="btn" id="reentrar" type="button" style="display:none" title="Abrir el acceso del CMS para iniciar sesión otra vez">↻ Volver a entrar</button>
     <button class="btn primary" id="btnAdd" title="Buscar la sesión de un cliente (A)"><span class="larga">＋ Buscar sesión</span><span class="corta">＋</span> <kbd>A</kbd></button>
     <button class="btn" id="btnPrueba" title="Clase de prueba: escribir o pegar una planificación (N)"><span class="larga">✎ Clase de prueba</span><span class="corta">✎</span> <kbd>N</kbd></button>
     <button class="btn" id="btnZen" title="Esconder la barra y el pie para ganar espacio (Z)"><span class="larga">▭ Ocultar barras</span><span class="corta">▭</span></button>
@@ -443,6 +449,7 @@ let fichas = [];              // fichas materializadas (permite editarlas)
 let quitados = new Set();
 let horaSel = 'todas', filtro = 'todos', zkey = null, edUid = null, edTxt0 = null;
 let ultimoBorrado = null, toastT = null, refT = null, yaCargo = false, nLibre = 0;
+let sesionCaida = false;      // la última lectura falló por sesión, no por red
 let zen = false;              // sin barra de arriba ni pie: todo el alto para las fichas
 try { zen = localStorage.getItem('pf_zen') === '1'; } catch(e){}
 let nTV = 1;                  // 1 = un televisor · 2 = dos televisores
@@ -464,6 +471,8 @@ function estado(txt, clase){
   if (ES_TV) return;
   $('#connTxt').innerHTML = txt;
   $('#conn .dotf').className = 'dotf' + (clase ? ' ' + clase : '');
+  const b = $('#reentrar');
+  if (b) b.style.display = (sesionCaida && urlLogin()) ? '' : 'none';
 }
 
 /* ---------- normalizadores ---------- */
@@ -771,6 +780,32 @@ if (canal) canal.onmessage = ev => {
 };
 
 /* ---------- sincronizar con el CMS ---------- */
+// Lo que el profesional lee decide lo que va a hacer. "Sin conexión" lo manda a
+// revisar el internet; si lo que pasó fue que caducó la sesión, eso es media
+// hora perdida mirando el router. Y cuando se quite el token, la sesión caducada
+// pasa a ser el modo de fallo principal, así que distinguirlos deja de ser un
+// detalle de redacción.
+// El PC del box está desatendido: avisar no basta, hay que dar el camino de
+// vuelta. La sesión puede morir aunque se renueve —rotación del secreto, cuenta
+// desactivada, perfil de Chrome limpiado— y ahí alguien tiene que poder entrar
+// sin saber ninguna URL. Al volver de la pestaña de acceso se reintenta solo.
+const urlLogin = () => {
+  if (CONFIG.urlLogin) return CONFIG.urlLogin;
+  try { return new URL(CONFIG.endpoint || CONFIG.endpointEstado || '').origin + '/login'; }
+  catch(e){ return ''; }
+};
+function porQueFallo(e){
+  if (e && (e.http === 401 || e.http === 403)){
+    sesionCaida = true;
+    return 'Sesión caducada en el CMS';
+  }
+  sesionCaida = false;
+  if (e && e.forma)
+    return 'El CMS respondió algo que no es el catálogo';
+  if (e && e.http)
+    return 'El CMS respondió <b>error ' + e.http + '</b>';
+  return 'Sin conexión';
+}
 async function sincronizar(silencioso){
   if (ES_TV) return;
   const fecha = CONFIG.fecha || hoy();
@@ -784,7 +819,7 @@ async function sincronizar(silencioso){
   try {
     const sep = url.includes('?') ? '&' : '?';
     const r = await fetch(url + sep + 'fecha=' + encodeURIComponent(fecha) + '&_=' + Date.now(), {cache:'no-store'});
-    if (!r.ok) throw new Error('HTTP ' + r.status);
+    if (!r.ok) throw Object.assign(new Error('HTTP ' + r.status), {http: r.status});
     const j = await r.json();
     // El modo agenda tiene que PROBARSE, no deducirse por descarte. Antes era la
     // rama "else": cualquier respuesta 200 sin "clientes" —un error con formato
@@ -796,8 +831,13 @@ async function sincronizar(silencioso){
     const puedeAgenda = !!CONFIG.endpointAgenda;
     if (Array.isArray(j.clientes))                     { MODO = 'catalogo'; CATALOGO = desdeCatalogo(j); }
     else if (puedeAgenda && Array.isArray(j.sesiones)) { MODO = 'agenda';   CATALOGO = desdeAgenda(j); }
-    else throw new Error('respuesta inesperada del CMS (sin "clientes")');
+    else throw Object.assign(new Error('respuesta inesperada del CMS'), {forma: true});
     armarCandidatos();
+    // La lectura funcionó: la sesión está viva otra vez y el camino de vuelta
+    // ya no hace falta. Sin esta línea el botón se quedaba puesto después de
+    // volver a entrar, diciendo que la sesión sigue caída cuando ya no lo está
+    // —justo el momento que el botón existe para cerrar.
+    sesionCaida = false;
     try { localStorage.setItem('pf_cat', JSON.stringify({f: fecha, m: MODO, d: CATALOGO})); } catch(e){}
     const hh = new Date().toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'});
     estado(`<b>CMS</b> · ${CATALOGO.length} ${MODO==='catalogo'?'clientes':'sesiones'} · ${hh}`, '');
@@ -810,8 +850,8 @@ async function sincronizar(silencioso){
                                    c = x.d; } } catch(_){}
     if (c && !CATALOGO.length){
       CATALOGO = c; armarCandidatos();
-      estado('Sin conexión — mostrando <b>última copia</b>', 'err'); primeraCarga();
-    } else { estado('Error al leer: <b>' + esc(e.message) + '</b>', 'err'); render(); }
+      estado(porQueFallo(e) + ' — mostrando <b>última copia</b>', 'err'); primeraCarga();
+    } else { estado(porQueFallo(e), 'err'); render(); }
   }
 }
 function primeraCarga(){
@@ -1360,7 +1400,12 @@ setInterval(reloj, 1000); reloj();
    publicación— y se compara con el que había al arrancar. No hace falta
    inventar ningún archivo ni ningún número nuevo.
    ============================================================ */
-let versionInicial = null, avisoVersion = false;
+let versionInicial = null, avisoVersion = false, candidato = null, vecesVisto = 0;
+// El número de caché solo sube. Si el CDN devuelve uno anterior mientras se
+// propaga la publicación, se ignora en vez de tomarlo por "versión nueva"; y se
+// exige verlo dos veces seguidas antes de dar por buena la novedad. Sin esto,
+// el ir y venir del CDN se traduce en recargas repetidas delante de la clase.
+const numVer = v => { const m = /(\d+)\s*$/.exec(v || ''); return m ? +m[1] : NaN; };
 const dialogoAbierto = () => ['#buscador','#editor','#zoom']
   .some(s => { const e = $(s); return e && e.classList.contains('on'); });
 
@@ -1370,8 +1415,13 @@ async function mirarVersion(){
     if (!r.ok) return;
     const m = /const\s+CACHE\s*=\s*['"]([^'"]+)['"]/.exec(await r.text());
     if (!m) return;
-    if (versionInicial === null){ versionInicial = m[1]; pintarVersion(); return; }
-    if (m[1] === versionInicial) return;
+    const v = m[1];
+    if (versionInicial === null){ versionInicial = v; pintarVersion(); return; }
+    if (v === versionInicial){ candidato = null; vecesVisto = 0; return; }
+    const a = numVer(versionInicial), b = numVer(v);
+    if (!isNaN(a) && !isNaN(b) && b <= a) return;      // el CDN entregó una anterior
+    if (v !== candidato){ candidato = v; vecesVisto = 1; return; }
+    if (++vecesVisto < 2) return;                      // dos lecturas seguidas iguales
     avisoVersion = true; pintarVersion(); quizasRecargar();
   } catch(e){ /* sin conexión: no se hace nada, se reintenta después */ }
 }
@@ -1403,6 +1453,19 @@ function pintarVersion(){
                                : (versionInicial || '');
   e.style.display = versionInicial ? '' : 'none';
 }
+// Volver a entrar abre la pestaña del CMS; al regresar a la pantalla se
+// reintenta solo, para que nadie tenga que acordarse de recargar.
+document.addEventListener('click', e => {
+  if (e.target && e.target.id === 'reentrar'){
+    const u = urlLogin(); if (u) window.open(u, '_blank', 'noopener');
+  }
+});
+const reintentarSiVuelve = () => {
+  if (!ES_TV && sesionCaida && !document.hidden) sincronizar(true);
+};
+document.addEventListener('visibilitychange', reintentarSiVuelve);
+addEventListener('focus', reintentarSiVuelve);
+
 setInterval(mirarVersion, 60000); mirarVersion();
 setInterval(quizasRecargar, 5000);
 
