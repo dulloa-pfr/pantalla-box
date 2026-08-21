@@ -236,6 +236,15 @@ una verdad.
   token. Se separó del `index.html` justamente para dejar de rescatarlas a mano
   en cada versión, que es un paso que un día se olvida y deja la pantalla en
   datos de demostración sin que nadie lo note.
+- **Dejar un aviso de fallo que no diga la causa.** Lo que el profesional lee
+  decide lo que hace. «Sin conexión» lo manda a revisar el router del box; si lo
+  que pasó fue que caducó la sesión del CMS, es media hora mirando el lugar
+  equivocado. Cada fallo tiene que decir el suyo: sesión caducada, respuesta que
+  no es el catálogo, error del servidor, sin red. Esto deja de ser cosmético en
+  cuanto se quite el token: hoy el token hace que la sesión casi nunca importe,
+  y sin él **la sesión caducada pasa a ser el modo de fallo principal de la
+  pantalla**. El aviso genérico es además el que esconde el fallo más caro,
+  porque el único que puede arreglarlo es quien sabe volver a entrar.
 - **Volver a deducir el modo por descarte.** El modo agenda se *prueba*; no es
   lo que queda cuando la respuesta no trae `clientes`. Escribirlo como
   `if (clientes) … else agenda` parece más corto y es un defecto: cualquier
