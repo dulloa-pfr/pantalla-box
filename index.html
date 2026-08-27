@@ -31,7 +31,10 @@
   .sep{width:1px;align-self:stretch;background:var(--line);margin:3px 0}
   .slot{display:flex;align-items:baseline;gap:8px;flex:0 0 auto}
   .slot .hour{font-size:25px;font-weight:900;letter-spacing:-1px;color:var(--blanco);line-height:1}
-  .slot .meta{font-size:11.5px;color:var(--txt-2);text-transform:capitalize;white-space:nowrap}
+  /* `capitalize` pone mayúscula en CADA palabra y en español deja
+     "27 De Agosto". Solo la primera letra. */
+  .slot .meta{font-size:11.5px;color:var(--txt-2);white-space:nowrap}
+  .slot .meta::first-letter{text-transform:uppercase}
 
   .legend{display:flex;gap:8px;flex:0 0 auto}
   .lg{display:flex;align-items:center;gap:6px;font-size:10.5px;font-weight:800;letter-spacing:.5px;
@@ -77,10 +80,10 @@
   header.c2 #connTxt{display:none}                      /* detalle de conexión (queda el punto) */
   header.c2 .conn{padding:6px 9px}
   header.c3 .clock{display:none}                        /* el reloj del sistema ya está */
-  header.c4 .slot .meta{display:none}                   /* la fecha */
-  header.c5{gap:11px}
-  header.c5 .legend{display:none}                       /* los contadores */
-  header.c5 .sep{display:none}
+  header.c4{gap:11px}
+  header.c4 .legend{display:none}                       /* los contadores */
+  header.c4 .sep{display:none}
+  header.c5 .slot .meta{display:none}                   /* la fecha: cede después de los contadores */
   header.c6{gap:8px}
   header.c6 .btn .larga{display:none}                   /* último recurso: solo íconos */
   header.c6 .btn .corta{display:inline}
@@ -462,9 +465,29 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const uid = () => 'f' + Math.random().toString(36).slice(2, 9);
 const ficha = u => fichas.find(f => f.uid === u);
-const hoy = () => { const n = new Date();
-  return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0'); };
-const horaAhora = () => String(new Date().getHours()).padStart(2,'0') + ':00';
+/* La hora es la de Puerto Varas, no la del computador. Chile cambia de horario
+   dos veces al año —el 6 de septiembre de 2026 pasa a UTC-3 y el 4 de abril de
+   2027 vuelve a UTC-4— y pidiéndola por zona horaria IANA el cambio lo aplica
+   el navegador solo: no hay ningún número que actualizar aquí ese fin de semana.
+   Además `hoy()` es la fecha que se manda al CMS y contra la que se compara el
+   tablero compartido, así que un computador con la zona mal puesta dejaría de
+   ser un detalle: leer la zona del box lo hace imposible. */
+const TZ_BOX = 'America/Santiago';
+const partesChile = d => {
+  const n = d || new Date();
+  try {
+    return new Intl.DateTimeFormat('en-CA', {timeZone: TZ_BOX, hourCycle: 'h23',
+        year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'})
+      .formatToParts(n).reduce((a, p) => (a[p.type] = p.value, a), {});
+  } catch(e){                      // navegador sin datos de zonas horarias
+    return {year:String(n.getFullYear()), month:String(n.getMonth()+1).padStart(2,'0'),
+            day:String(n.getDate()).padStart(2,'0'), hour:String(n.getHours()).padStart(2,'0'),
+            minute:String(n.getMinutes()).padStart(2,'0')};
+  }
+};
+const hoy = () => { const p = partesChile(); return p.year+'-'+p.month+'-'+p.day; };
+const horaAhora = () => partesChile().hour + ':00';
+const horaMinuto = () => { const p = partesChile(); return p.hour+':'+p.minute; };
 const clonar = o => JSON.parse(JSON.stringify(o));
 
 function estado(txt, clase){
@@ -974,11 +997,18 @@ function quitar(u){
 
 /* ---------- cabecera y horas ---------- */
 function pintarCabecera(){
-  const h = (MODO === 'agenda' && horaSel !== 'todas') ? horaSel : 'HOY';
-  const f = new Date((CONFIG.fecha || hoy()) + 'T12:00:00')
-              .toLocaleDateString('es-CL',{weekday:'long',day:'numeric',month:'long'});
-  document.querySelectorAll('#slotHour').forEach(x => x.textContent = h);
+  // En modo agenda con un bloque elegido, el número grande dice QUÉ bloque se
+  // está proyectando: eso manda sobre el reloj. En cualquier otro caso muestra
+  // la hora del box, que antes decía "HOY" y no informaba de nada.
+  const bloque = (MODO === 'agenda' && horaSel !== 'todas') ? horaSel : null;
+  // Mediodía UTC: Chile está en UTC-3/-4, así que el día nunca se corre al
+  // formatear, venga el computador de la zona horaria que venga.
+  const f = new Date((CONFIG.fecha || hoy()) + 'T12:00:00Z')
+              .toLocaleDateString('es-CL',{timeZone: TZ_BOX, weekday:'long', day:'numeric', month:'long'});
+  document.querySelectorAll('#slotHour').forEach(x => x.textContent = bloque || horaMinuto());
   document.querySelectorAll('#slotDate').forEach(x => x.textContent = f);
+  // El reloj de la derecha repetiría la hora que ya está en el número grande.
+  const c = $('#clock'); if (c) c.style.display = bloque ? '' : 'none';
 }
 function pintarHoras(){
   if (ES_TV) return;
@@ -1385,9 +1415,17 @@ if (ES_TV){
 }
 
 let rz; addEventListener('resize', () => { ajustarBarra(); clearTimeout(rz); rz = setTimeout(render, 150); });
-function reloj(){ const n = new Date();
-  document.querySelectorAll('#clock').forEach(x =>
-    x.textContent = String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')); }
+// Se mira cada segundo pero solo se escribe cuando cambia el minuto: así la
+// fecha pasa sola la medianoche en una pantalla que lleva días abierta, sin
+// tocar el DOM 86.400 veces al día.
+let ultimoMinuto = null;
+function reloj(){
+  const hm = horaMinuto();
+  if (hm === ultimoMinuto) return;
+  ultimoMinuto = hm;
+  document.querySelectorAll('#clock').forEach(x => x.textContent = hm);
+  pintarCabecera();
+}
 setInterval(reloj, 1000); reloj();
 
 /* ============================================================

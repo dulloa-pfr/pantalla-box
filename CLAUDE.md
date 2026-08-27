@@ -310,6 +310,30 @@ escribe.
 
 ## Registro de correcciones
 
+**27-08-2026 — v20: la cabecera dice la hora del box, no "HOY".** El número grande
+mostraba la palabra `HOY`, que no informaba de nada, y en el televisor era el
+**único** reloj —`.clock` está oculto ahí por CSS—, así que la pantalla proyectada
+no daba la hora. Ahora muestra hora y fecha, y se actualizan solas: se mira cada
+segundo y se escribe solo al cambiar el minuto, de modo que una pantalla abierta
+varios días pasa la medianoche sin ayuda.
+
+La hora se pide por **zona horaria IANA `America/Santiago`**, no al reloj del
+computador. Dos motivos: Chile cambia de horario dos veces al año —**el 6 de
+septiembre de 2026 pasa a UTC-3** y el 4 de abril de 2027 vuelve a UTC-4— y por
+esta vía lo aplica el navegador solo, sin ningún número que tocar ese fin de
+semana; y `hoy()` es la fecha que se manda al CMS y contra la que `adoptar()`
+compara el tablero compartido, así que un computador con la zona mal puesta
+dejaba de ser un detalle cosmético. Verificado forzando el equipo a `Asia/Tokyo`:
+la pantalla sigue dando la hora y la fecha de Puerto Varas.
+
+Dos cosas salieron de mirarlo en pantalla: el reloj de la derecha repetía la hora
+que ahora está en el número grande, así que se esconde salvo en modo agenda con
+un bloque elegido (donde el número grande dice el bloque); y la fecha se
+sacrificaba en `c4`, o sea **antes de 1366**, justo el ancho del PC del box —
+ahora cede después de los contadores y sobrevive hasta 1280. El
+`text-transform: capitalize` de la fecha escribía «27 De Agosto»; se dejó solo la
+primera letra.
+
 **21-08-2026 — v18: el arranque guardaba el tablero vacío encima del bueno.**
 Anterior a todo lo demás y encontrado al construir la recarga automática. En el
 arranque `render()` corre **antes** de que se hayan leído los datos, y `render()`
