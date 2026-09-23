@@ -1,8 +1,8 @@
-# Endpoint para desmarcar sesiones — hecho y desplegado
+# Endpoint para dejar sesiones sin marcar — hecho y desplegado
 
 Sirve para el botón **↺** que aparece en el buscador, a la derecha de quien
-tiene sesiones con ✓. Desmarca de una vez todas las sesiones realizadas de esa
-persona.
+tiene sesiones con ✓. Borra de una vez todas sus marcas **sin perder el total
+de sesiones realizadas del período**.
 
 Implementado en `server/_core/pantallaRoutes.ts` del CMS
 (`dulloa-pfr/cms-patagoniafitrehab`), junto a las rutas que ya existían.
@@ -15,6 +15,9 @@ En el box la sesión del día se marca desde la pantalla. Cuando empieza una
 vuelta nueva hay que volver a cero, y hacerlo ficha por ficha en el CMS es un
 trabajo que nadie hace: las marcas viejas se quedan y el ✓ deja de significar
 algo.
+
+Volver a cero es **limpiar la pantalla**, no negar lo que la persona entrenó.
+Por eso el total del período se conserva: lo que se apaga son las marcas.
 
 ## Ruta
 
@@ -36,7 +39,7 @@ El mismo `PANTALLA_TOKEN` por query string, o una sesión del CMS. Sin token →
 ## Respuesta
 
 ```json
-{ "ok": true, "desmarcadas": 3 }
+{ "ok": true, "desmarcadas": 3, "arrastreSumado": 3 }
 ```
 
 | Caso | Respuesta |
@@ -56,8 +59,15 @@ más nuevo, más las huérfanas: el mismo recorte que usa el catálogo—:
 2. en las que estaban realizadas, borra `completedAt` y devuelve
    `sessionStatus` a `pendiente`. Una sesión cancelada o no utilizada no se
    toca: sigue como está;
-3. deja una fila en `audit_log` con las sesiones tocadas, a nombre de
-   "pantalla del box".
+3. suma esas marcas al arrastre del período
+   (`training_plans.sessionsDoneBaseline`), de modo que el anillo del resumen
+   siga mostrando el mismo total. Solo cuentan las sesiones del plan: las
+   huérfanas nunca entraron en el anillo;
+4. deja una fila en `audit_log` con las sesiones tocadas y el arrastre sumado, a
+   nombre de "pantalla del box".
+
+Para quitar una sesión que **no** se hizo —y que el contador baje— está el
+botón **Desmarcar** de esa sesión en la vista de ejecución de la ficha.
 
 Son las **mismas filas** que muestra la ficha del cliente, así que la vista de
 ejecución y el anillo de sesiones del resumen quedan iguales. Qué cuenta como
@@ -77,10 +87,12 @@ curl -i -X POST "https://patagonia-fit-cms.onrender.com/api/pantalla/desmarcar" 
 # 2. ficha kinésica -> 400
 # 3. cliente de entrenamiento con sesiones marcadas -> 200 con el número,
 #    y GET /api/pantalla/clientes ya no trae esas sesiones con "hecha": true
+# 4. el anillo de su ficha en el CMS sigue marcando el mismo total
 ```
 
-La prueba que cierra el círculo es la 3, mirando además la ficha del cliente en
-el CMS: el check ✅ de la vista de ejecución tiene que haber desaparecido.
+Las que cierran el círculo son la 3 y la 4, mirando la ficha del cliente en el
+CMS: los ✅ de la vista de ejecución tienen que haber desaparecido y el anillo
+del resumen tiene que seguir igual.
 
 ## En la pantalla
 

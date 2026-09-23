@@ -20,7 +20,7 @@ de cada cliente y lo proyecta uno por uno.
 
 | | |
 |---|---|
-| Pantalla | **v22 publicada.** Control en el computador, proyección en uno o dos televisores |
+| Pantalla | **v23 publicada.** Control en el computador, proyección en uno o dos televisores |
 | Tablero compartido | **Sí.** Dos computadores del centro manejan el mismo televisor |
 | Editor en la pantalla | **Sí.** Entrenamiento sobrescribe; kinesiología versiona |
 | Configuración | En `pantalla/config.js`, **aparte del `index.html`** |
@@ -61,7 +61,7 @@ datos por HTTP.
 | `pantalla/manifest.webmanifest` | Permite instalarla como app de escritorio |
 | `pantalla/icon-*.png` | Íconos, generados desde el logo oficial |
 | `Especificacion_CMS_Pantalla.md` | Contrato del endpoint. **Fuente de verdad** |
-| `docs/ENDPOINT_DESMARCAR.md` | Contrato del botón ↺ que desmarca las sesiones realizadas |
+| `docs/ENDPOINT_DESMARCAR.md` | Contrato del botón ↺ que deja las sesiones sin marcar |
 | `docs/ENDPOINT_MARCAR.md` | Contrato de la marca automática al proyectar un día |
 | `INSTRUCCIONES_PARA_EL_AGENTE.md` | Plan de trabajo con checklist de verificación |
 | `PROMPT_PARA_CLAUDE.md` | Mensaje para la sesión del CMS |
@@ -313,6 +313,20 @@ escribe.
 ---
 
 ## Registro de correcciones
+
+**23-09-2026 — v23: limpiar los ✓ ya no borra lo que la persona entrenó.** El
+botón ↺ seguía haciendo lo mismo —apagar las marcas de la pantalla y de la
+ficha— pero además el CMS suma esas marcas al total del período, así que el
+anillo del resumen no se mueve.
+
+Antes las dos cosas caían juntas, y ahí estaba el error de fondo: se confundió
+"limpiar la pantalla para la vuelta siguiente" con "estas sesiones no se
+hicieron". Son distintas. La primera es de la pantalla; la segunda es una
+corrección del historial de alguien, y para eso está el **Desmarcar** de cada
+sesión en la vista de ejecución, que sí baja el contador.
+
+Cambia también lo que dice la pantalla antes de hacerlo: la confirmación avisa
+que el total del período se mantiene.
 
 **23-09-2026 — v22: proyectar un día lo marca como realizado.** Al elegir la
 sesión de alguien —desde el buscador o cambiándola en la ficha ampliada— la
