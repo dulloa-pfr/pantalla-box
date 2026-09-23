@@ -223,6 +223,11 @@ cada fila: `POST /api/pantalla/desmarcar`, contrato en
 [ENDPOINT_DESMARCAR.md](ENDPOINT_DESMARCAR.md). Eso sí escribe, y escribe en las
 mismas filas que la ficha del CMS.
 
+Y desde la v22 también las **pone**: proyectar un día lo marca como realizado
+(`POST /api/pantalla/marcar`, [ENDPOINT_MARCAR.md](ENDPOINT_MARCAR.md)). O sea
+que el campo `hecha` dejó de ser solo informativo — sigue sin decidir nada en la
+pantalla, pero ahora la pantalla sí decide sobre él.
+
 ## 5 · Consultas a reutilizar
 
 No escribir consultas nuevas en paralelo. Ya existen en `server/db.ts`:

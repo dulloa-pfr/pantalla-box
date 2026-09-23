@@ -990,6 +990,39 @@ function agregar(cid, sid){
                   nuevaFicha(c.cliente, c.sesion); const f = fichas.pop(); f.uid = u; fichas.splice(prev, 0, f); }
   else nuevaFicha(c.cliente, c.sesion);
   render(); listar();
+  marcarProyectada(c);
+}
+
+/* Proyectar el día de alguien ES hacerlo: el entrenador elige la sesión con la
+   persona ya entrenando delante. Se le avisa al CMS para que la ficha no quede
+   atrasada — antes había que volver a marcarla allá, y ese paso se olvidaba
+   siempre.
+
+   Va en segundo plano y de forma optimista: el ✓ aparece al instante y nadie
+   espera a la red. Si el CMS no contesta, se deshace el ✓ y se avisa; lo peor
+   que pasa es marcarlo a mano, como antes. Kinesiología no se toca: esas
+   sesiones se cierran en su ficha clínica. */
+function urlMarcar(){
+  if (CONFIG.endpointMarcar) return CONFIG.endpointMarcar;
+  if (CONFIG.endpointGuardar) return CONFIG.endpointGuardar.replace('/api/pantalla/guardar', '/api/pantalla/marcar');
+  return '';
+}
+async function marcarProyectada(c){
+  if (!c || !c.cliente || !c.sesion) return;
+  if (c.cliente.tipo === 'kinesiologia' || c.sesion.hecha) return;
+  const url = urlMarcar(); if (!url) return;
+  c.sesion.hecha = true; listar();
+  try {
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({cliente_id: c.cid, sesion_id: c.sid})
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+  } catch(e){
+    c.sesion.hecha = false; listar();
+    toast('No quedó marcada en el CMS: hay que marcarla a mano', true);
+  }
 }
 function quitar(u){
   const i = fichas.findIndex(f => f.uid === u); if (i < 0) return;

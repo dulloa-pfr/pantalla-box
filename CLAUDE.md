@@ -20,7 +20,7 @@ de cada cliente y lo proyecta uno por uno.
 
 | | |
 |---|---|
-| Pantalla | **v21 publicada.** Control en el computador, proyección en uno o dos televisores |
+| Pantalla | **v22 publicada.** Control en el computador, proyección en uno o dos televisores |
 | Tablero compartido | **Sí.** Dos computadores del centro manejan el mismo televisor |
 | Editor en la pantalla | **Sí.** Entrenamiento sobrescribe; kinesiología versiona |
 | Configuración | En `pantalla/config.js`, **aparte del `index.html`** |
@@ -40,6 +40,7 @@ CMS (Render)                     Pantalla (GitHub Pages)
      │  GET  /api/pantalla/clientes       │
      │  POST /api/pantalla/guardar        │
      │  POST /api/pantalla/desmarcar      │
+     │  POST /api/pantalla/marcar         │
      │  GET/POST /api/pantalla/estado     │
      └──────────── JSON ─────────────────►│
                                           │
@@ -61,6 +62,7 @@ datos por HTTP.
 | `pantalla/icon-*.png` | Íconos, generados desde el logo oficial |
 | `Especificacion_CMS_Pantalla.md` | Contrato del endpoint. **Fuente de verdad** |
 | `docs/ENDPOINT_DESMARCAR.md` | Contrato del botón ↺ que desmarca las sesiones realizadas |
+| `docs/ENDPOINT_MARCAR.md` | Contrato de la marca automática al proyectar un día |
 | `INSTRUCCIONES_PARA_EL_AGENTE.md` | Plan de trabajo con checklist de verificación |
 | `PROMPT_PARA_CLAUDE.md` | Mensaje para la sesión del CMS |
 | `GUIA_GITHUB.md` | Publicación paso a paso, para no técnicos |
@@ -311,6 +313,30 @@ escribe.
 ---
 
 ## Registro de correcciones
+
+**23-09-2026 — v22: proyectar un día lo marca como realizado.** Al elegir la
+sesión de alguien —desde el buscador o cambiándola en la ficha ampliada— la
+pantalla avisa al CMS con `POST /api/pantalla/marcar` y esa sesión queda
+realizada allá. Contrato en [docs/ENDPOINT_MARCAR.md](docs/ENDPOINT_MARCAR.md).
+
+Proyectar el día de alguien **es** hacerlo: el entrenador lo elige con la
+persona ya entrenando delante. Antes eso no dejaba rastro y había que volver a
+marcarlo en el CMS; ese paso se olvidaba siempre, así que el contador de la
+ficha estaba atrasado para todos menos para quien estaba en el box.
+
+Se marca de forma **optimista**: el ✓ aparece al instante y nadie espera a la
+red. Si el CMS no contesta, la pantalla deshace el ✓ y avisa que hay que
+marcarla a mano — proyectar nunca se bloquea por una llamada que además no es
+urgente.
+
+Se escriben las dos marcas (`completedAt` con `sessionStatus` y el check ✅) para
+que la ficha diga "realizada" y no quede a medio camino. `sessionDate` no se
+toca: esa es la fecha que el entrenador planificó. Y como ahora una marca puede
+nacer de un clic en el box, el CMS ganó un **Desmarcar** por sesión en la vista
+de ejecución; el ↺ de la fila sigue sirviendo para dejar a alguien entero en
+cero.
+
+Kinesiología no se marca: esas sesiones se cierran en su ficha clínica.
 
 **23-09-2026 — v21: desmarcar desde la pantalla las sesiones realizadas de
 alguien.** En el buscador, la fila de quien tiene sesiones con ✓ trae a la
