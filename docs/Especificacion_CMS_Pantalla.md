@@ -218,6 +218,11 @@ Es solo informativo: atenúa el botón en el buscador con un ✓. **La pantalla 
 decide nada con ese dato** — el coach elige la sesión. Si viene mal, no rompe
 nada.
 
+Desde la v21 la pantalla también puede **borrar** esas marcas, con el botón ↺ de
+cada fila: `POST /api/pantalla/desmarcar`, contrato en
+[ENDPOINT_DESMARCAR.md](ENDPOINT_DESMARCAR.md). Eso sí escribe, y escribe en las
+mismas filas que la ficha del CMS.
+
 ## 5 · Consultas a reutilizar
 
 No escribir consultas nuevas en paralelo. Ya existen en `server/db.ts`:

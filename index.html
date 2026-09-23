@@ -209,6 +209,11 @@
   .row.ent .go{background:var(--ent);color:#fff}
   .row .go.hecha{background:#33332F;color:var(--txt-3)}
   .row .go.hecha::after{content:" ✓"}
+  /* Volver a cero las sesiones realizadas de esa persona. Discreto a propósito:
+     borra trabajo marcado, no es una acción del día a día. */
+  .row .undo{font-size:12px;font-weight:800;color:var(--txt-3);background:transparent;
+             border:1px solid var(--line);padding:5px 9px;border-radius:7px;cursor:pointer;flex:0 0 auto}
+  .row .undo:hover{color:var(--txt-1);border-color:var(--txt-3)}
   .vacio{padding:26px;text-align:center;color:var(--txt-3);font-size:14px}
   .fuente{padding:11px 22px;border-top:1px solid var(--line-soft);background:var(--card-2);
           font-size:11px;color:var(--txt-3);display:flex;align-items:center;gap:8px}
@@ -1191,6 +1196,38 @@ function render(){
   if (!ES_TV) guardarEstado();
 }
 
+/* ---------- desmarcar las sesiones realizadas de una persona ---------- */
+/* El ✓ de la pantalla y el check de la ficha son el MISMO dato: esto lo borra
+   en el CMS y vuelve a pedir el catálogo, así que la pantalla, la vista de
+   ejecución y el contador de la ficha quedan iguales. Solo entrenamiento: una
+   sesión de kinesiología se cierra en su ficha clínica, no desde acá. */
+function urlDesmarcar(){
+  if (CONFIG.endpointDesmarcar) return CONFIG.endpointDesmarcar;
+  // Se deduce del de guardar para no repetir la URL (ni el token) en config.js.
+  if (CONFIG.endpointGuardar) return CONFIG.endpointGuardar.replace('/api/pantalla/guardar', '/api/pantalla/desmarcar');
+  return '';
+}
+async function desmarcarSesiones(cid){
+  const cli = CATALOGO.find(c => c.id === cid); if (!cli) return;
+  const url = urlDesmarcar();
+  if (!url) return alert('Falta endpointGuardar en config.js: sin eso no se puede escribir en el CMS.');
+  if (!confirm(`¿Desmarcar todas las sesiones realizadas de ${cli.nombre}?\n\nTambién se desmarcan en su ficha del CMS.`)) return;
+  try {
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({cliente_id: cid})
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
+    await sincronizar(true);
+    listar();
+    estado(`<b>${esc(cli.nombre)}</b> · ${j.desmarcadas || 0} sesiones desmarcadas`, '');
+  } catch(e){
+    alert('No se pudo desmarcar: ' + e.message);
+  }
+}
+
 /* ---------- buscador ---------- */
 function listar(){
   if (ES_TV) return;
@@ -1208,6 +1245,9 @@ function listar(){
       <span class="nm">${esc(c.nombre)}</span>
       <span class="mt">${c.tipo==='kinesiologia'?'Kinesiología':'Entrenamiento'}${c.plan?' · '+esc(c.plan):''}${c.profesional?' · '+esc(c.profesional):''}</span>
       <span class="ses">${ses.map(s => `<button class="go${s.hecha?' hecha':''}" data-cid="${esc(c.id)}" data-sid="${esc(s.id)}" title="${esc(s.etiqueta||'')}${s.hecha?' · ya realizada':''}">${esc(s.rotulo || s.titulo || s.etiqueta)}</button>`).join('')}</span>
+      ${c.tipo !== 'kinesiologia' && ses.some(s => s.hecha)
+        ? `<button class="undo" data-desmarcar="${esc(c.id)}" title="Desmarcar las sesiones realizadas de ${esc(c.nombre)}">↺</button>`
+        : ''}
     </div>`; }).join('') : `<div class="vacio">No hay clientes que coincidan.</div>`;
 }
 function abrirBuscador(){
@@ -1339,6 +1379,8 @@ if (!ES_TV){
     const ed = e.target.closest('[data-ed]');  if (ed){ e.stopPropagation(); return abrirEditor(ed.dataset.ed); }
     const tv = e.target.closest('[data-tv]');  if (tv){ e.stopPropagation(); return cambiarTV(tv.dataset.tv); }
     if (e.target.closest('#slotAdd')) return abrirBuscador();
+    const des = e.target.closest('[data-desmarcar]');
+    if (des){ e.stopPropagation(); return desmarcarSesiones(des.dataset.desmarcar); }
     const add = e.target.closest('#shList [data-cid]');
     if (add){ agregar(add.dataset.cid, add.dataset.sid); if (fichas.length >= cap()) cerrarBuscador(); return; }
     const sw = e.target.closest('#zcard [data-cid]');

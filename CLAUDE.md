@@ -20,7 +20,7 @@ de cada cliente y lo proyecta uno por uno.
 
 | | |
 |---|---|
-| Pantalla | **v18 publicada.** Control en el computador, proyección en uno o dos televisores |
+| Pantalla | **v21 publicada.** Control en el computador, proyección en uno o dos televisores |
 | Tablero compartido | **Sí.** Dos computadores del centro manejan el mismo televisor |
 | Editor en la pantalla | **Sí.** Entrenamiento sobrescribe; kinesiología versiona |
 | Configuración | En `pantalla/config.js`, **aparte del `index.html`** |
@@ -39,6 +39,7 @@ CMS (Render)                     Pantalla (GitHub Pages)
      │                                    │
      │  GET  /api/pantalla/clientes       │
      │  POST /api/pantalla/guardar        │
+     │  POST /api/pantalla/desmarcar      │
      │  GET/POST /api/pantalla/estado     │
      └──────────── JSON ─────────────────►│
                                           │
@@ -59,6 +60,7 @@ datos por HTTP.
 | `pantalla/manifest.webmanifest` | Permite instalarla como app de escritorio |
 | `pantalla/icon-*.png` | Íconos, generados desde el logo oficial |
 | `Especificacion_CMS_Pantalla.md` | Contrato del endpoint. **Fuente de verdad** |
+| `docs/ENDPOINT_DESMARCAR.md` | Contrato del botón ↺ que desmarca las sesiones realizadas |
 | `INSTRUCCIONES_PARA_EL_AGENTE.md` | Plan de trabajo con checklist de verificación |
 | `PROMPT_PARA_CLAUDE.md` | Mensaje para la sesión del CMS |
 | `GUIA_GITHUB.md` | Publicación paso a paso, para no técnicos |
@@ -309,6 +311,33 @@ escribe.
 ---
 
 ## Registro de correcciones
+
+**23-09-2026 — v21: desmarcar desde la pantalla las sesiones realizadas de
+alguien.** En el buscador, la fila de quien tiene sesiones con ✓ trae a la
+derecha un botón **↺** que las desmarca todas, con una confirmación antes. Llama
+al nuevo `POST /api/pantalla/desmarcar` del CMS y vuelve a pedir el catálogo.
+Contrato en [docs/ENDPOINT_DESMARCAR.md](docs/ENDPOINT_DESMARCAR.md).
+
+Existe porque marcar es fácil y desmarcar no: en el box la sesión del día se
+marca desde acá, pero volver a cero obligaba a entrar ficha por ficha en el CMS,
+y eso no lo hace nadie. Las marcas viejas se quedaban y el ✓ dejaba de
+significar algo.
+
+El ✓ de la pantalla y el check del entrenador **son el mismo dato** —
+`manualCheck` y `completedAt` de `planning_sessions` — así que desmarcar acá
+desmarca también en la ficha: vista de ejecución y contador del resumen. No hay
+dos verdades que sincronizar. El CMS pasó a tener esa definición en un solo
+lugar (`shared/sesionRealizada.ts`), porque las dos formas de marcar se usan y
+cada pantalla las contaba a su manera.
+
+Solo entrenamiento: una sesión de kinesiología se cierra en su ficha clínica, y
+reabrirla desde una pantalla que está a la vista de todos es otra cosa. El
+endpoint la rechaza.
+
+La URL se deduce de `endpointGuardar` cambiando `/guardar` por `/desmarcar`: así
+`config.js` no se toca —es el archivo que no se reemplaza nunca— y el token no
+queda escrito dos veces. Si algún día hacen falta direcciones distintas,
+`CONFIG.endpointDesmarcar` manda.
 
 **27-08-2026 — v20: la cabecera dice la hora del box, no "HOY".** El número grande
 mostraba la palabra `HOY`, que no informaba de nada, y en el televisor era el
