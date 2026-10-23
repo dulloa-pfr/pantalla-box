@@ -20,7 +20,7 @@ de cada cliente y lo proyecta uno por uno.
 
 | | |
 |---|---|
-| Pantalla | **v23 publicada.** Control en el computador, proyección en uno o dos televisores |
+| Pantalla | **v24 publicada.** Control en el computador, proyección en uno o dos televisores |
 | Tablero compartido | **Sí.** Dos computadores del centro manejan el mismo televisor |
 | Editor en la pantalla | **Sí.** Entrenamiento sobrescribe; kinesiología versiona |
 | Configuración | En `pantalla/config.js`, **aparte del `index.html`** |
@@ -313,6 +313,15 @@ escribe.
 ---
 
 ## Registro de correcciones
+
+**23-10-2026 — v24: los deportistas de High Performance llevan la etiqueta «HP».**
+Pedido de Gabriel: al buscar a alguien tienen que aparecer también los
+deportistas de HP, con una etiqueta junto al nombre. El CMS manda `hp.deporte`
+en cada ficha de un deportista activo (`athlete_profiles`), y una ficha `hp_<id>`
+sin sesiones si todavía no tiene plan ni episodio: por eso `desdeCatalogo` ya no
+descarta las fichas vacías cuando son HP. Esa fila dice «Sin planificación
+todavía» y no tiene botones. Buscar «hp» lista a todos los deportistas. Es el
+primer paso de juntar HP con la pantalla; Gabriel va dando las indicaciones.
 
 **23-09-2026 — v23: limpiar los ✓ ya no borra lo que la persona entrenó.** El
 botón ↺ seguía haciendo lo mismo —apagar las marcas de la pantalla y de la
