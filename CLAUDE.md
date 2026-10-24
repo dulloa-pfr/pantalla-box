@@ -314,6 +314,19 @@ escribe.
 
 ## Registro de correcciones
 
+**24-10-2026 — v26: el día HP proyectado deja de ofrecerse a ese deportista.**
+Pedido de Gabriel: que el entrenador sepa qué día exacto le toca a cada uno.
+Proyectar un día `hps_` ahora **sí** llama a `/marcar` con `hp_<id>`: el CMS lo
+anota en `hp_sesiones_hechas` (por persona; el mesociclo molde no se toca, PR
+#61/#62) y el catálogo manda `hecha` por deportista. La fila oculta los días
+hechos, abre en la primera semana con días pendientes desde la de hoy, y dice
+«Semana completa ✓» si se elige a mano una semana ya hecha. El ↺ de la fila
+(`/desmarcar` con `hp_<id>`) vuelve a ofrecerle todos los días.
+Verificado en Chromium con catálogo simulado. **Ojo al probar:** el service
+worker atiende los `fetch` de la página y Playwright NO intercepta lo que pasa
+por él — sin `service_workers="block"` las llamadas «simuladas» salían al CMS
+real (el tablero compartido no se tocó: su control de versión rechazó el POST).
+
 **24-10-2026 — v25: en las fichas HP se elige Mesociclo → Semana → Día.**
 Pedido de Gabriel. Desde el CMS (PR #59/#60) cada deportista HP con tipo de
 deporte trae una ficha `hp_<id>` con **todas** las sesiones de los mesociclos de

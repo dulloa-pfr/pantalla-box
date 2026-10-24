@@ -1017,8 +1017,9 @@ function urlMarcar(){
 async function marcarProyectada(c){
   if (!c || !c.cliente || !c.sesion) return;
   if (c.cliente.tipo === 'kinesiologia' || c.sesion.hecha) return;
-  // Los mesociclos HP son planes molde compartidos por todos los deportistas: no se marcan.
-  if (String(c.sid).startsWith('hps_')) return;
+  // Día HP: el CMS lo anota para ese deportista (no en el molde). Se suelta la
+  // semana elegida a mano para que la fila salte al siguiente día pendiente.
+  if (String(c.sid).startsWith('hps_')) delete hpSel[c.cid];
   const url = urlMarcar(); if (!url) return;
   c.sesion.hecha = true; listar();
   try {
@@ -1254,7 +1255,10 @@ async function desmarcarSesiones(cid){
   const cli = CATALOGO.find(c => c.id === cid); if (!cli) return;
   const url = urlDesmarcar();
   if (!url) return alert('Falta endpointGuardar en config.js: sin eso no se puede escribir en el CMS.');
-  if (!confirm(`¿Dejar sin marcar las sesiones de ${cli.nombre}?\n\nSe borran los ✓ acá y en su ficha. El total de sesiones realizadas del período se mantiene.`)) return;
+  const hp = cid.startsWith('hp_');
+  if (!confirm(hp
+    ? `¿Volver a ofrecerle a ${cli.nombre} todos los días de sus mesociclos?\n\nSe borran solo sus marcas; el mesociclo no cambia.`
+    : `¿Dejar sin marcar las sesiones de ${cli.nombre}?\n\nSe borran los ✓ acá y en su ficha. El total de sesiones realizadas del período se mantiene.`)) return;
   try {
     const r = await fetch(url, {
       method: 'POST',
@@ -1265,7 +1269,9 @@ async function desmarcarSesiones(cid){
     if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
     await sincronizar(true);
     listar();
-    estado(`<b>${esc(cli.nombre)}</b> · ${j.desmarcadas || 0} sesiones sin marcar · total del período intacto`, '');
+    delete hpSel[cid];
+    estado(hp ? `<b>${esc(cli.nombre)}</b> · ${j.desmarcadas || 0} días HP vuelven a estar disponibles`
+              : `<b>${esc(cli.nombre)}</b> · ${j.desmarcadas || 0} sesiones sin marcar · total del período intacto`, '');
   } catch(e){
     alert('No se pudo desmarcar: ' + e.message);
   }
@@ -1275,21 +1281,29 @@ async function desmarcarSesiones(cid){
    Las sesiones de una ficha HP traen `meso` y `semana`. En vez de un botón por
    cada día de todas las semanas, la fila muestra dos selectores y solo los días
    de la semana elegida. Al abrir queda elegida la semana que toca hoy
-   (`hp.actual`, la calcula el CMS con la fecha de inicio) o la primera. */
+   (`hp.actual`, la calcula el CMS con la fecha de inicio) o la primera.
+   v26: un día proyectado queda hecho para ESE deportista y deja de ofrecerse
+   (el mesociclo no cambia). Se abre en la primera semana con días pendientes
+   desde la de hoy, para que el entrenador vea cuál le toca. */
 const hpSel = {};
 const esHp = (ses) => ses.some(s => s.meso);
 function semanaElegida(c, ses){
   const hay = (m, w) => ses.some(s => s.meso === m && s.semana === w);
   const sel = hpSel[c.id];
   if (sel && hay(sel.meso, sel.semana)) return sel;
+  // Semanas en orden de calendario (el CMS ya las manda así).
+  const semanas = [];
+  ses.forEach(s => { if (!semanas.some(w => w.meso === s.meso && w.semana === s.semana)) semanas.push({meso: s.meso, semana: s.semana}); });
+  const pendiente = w => ses.some(s => s.meso === w.meso && s.semana === w.semana && !s.hecha);
   const a = c.hp && c.hp.actual;
-  if (a && hay(a.meso, a.semana)) return {meso: a.meso, semana: a.semana};
-  return {meso: ses[0].meso, semana: ses[0].semana};
+  const desde = Math.max(0, a ? semanas.findIndex(w => w.meso === a.meso && w.semana === a.semana) : 0);
+  return semanas.slice(desde).find(pendiente) || semanas.find(pendiente)
+      || (a && hay(a.meso, a.semana) ? {meso: a.meso, semana: a.semana} : semanas[0]);
 }
 function sesionesVisibles(c, ses){
   if (!esHp(ses)) return ses;
   const e = semanaElegida(c, ses);
-  return ses.filter(s => s.meso === e.meso && s.semana === e.semana);
+  return ses.filter(s => s.meso === e.meso && s.semana === e.semana && !s.hecha);
 }
 function selectoresHp(c, ses){
   if (!esHp(ses)) return '';
@@ -1299,7 +1313,8 @@ function selectoresHp(c, ses){
   return `<select class="hpsel" data-hpsel="meso" data-hpcid="${esc(c.id)}" title="Mesociclo">${
       mesos.map(m => `<option value="${m}"${m===e.meso?' selected':''}>Mesociclo ${m}</option>`).join('')}</select>`
     + `<select class="hpsel" data-hpsel="semana" data-hpcid="${esc(c.id)}" title="Semana">${
-      semanas.map(w => `<option value="${w}"${w===e.semana?' selected':''}>Semana ${w}</option>`).join('')}</select>`;
+      semanas.map(w => `<option value="${w}"${w===e.semana?' selected':''}>Semana ${w}</option>`).join('')}</select>`
+    + (ses.some(s => s.meso === e.meso && s.semana === e.semana && !s.hecha) ? '' : '<span class="sin">Semana completa ✓</span>');
 }
 function cambiarSelHp(el){
   const c = CATALOGO.find(x => x.id === el.dataset.hpcid); if (!c) return;
