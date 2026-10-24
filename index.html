@@ -211,6 +211,9 @@
   .row.ent .go{background:var(--ent);color:#fff}
   .row .go.hecha{background:#33332F;color:var(--txt-3)}
   .row .go.hecha::after{content:" ✓"}
+  /* Fichas HP (v25): el entrenador elige Mesociclo → Semana y después el día. */
+  .row .hpsel{font-size:11.5px;font-weight:800;background:#26262299;color:var(--txt);
+              border:1px solid #44443F;border-radius:6px;padding:5px 6px;cursor:pointer}
   /* Volver a cero las sesiones realizadas de esa persona. Discreto a propósito:
      borra trabajo marcado, no es una acción del día a día. */
   .row .undo{font-size:12px;font-weight:800;color:var(--txt-3);background:transparent;
@@ -657,10 +660,11 @@ function desdeCatalogo(json){
     tipo: esKine(c.servicio) ? 'kinesiologia' : 'entrenamiento',
     profesional: c.profesional || '', objetivo: (c.plan && c.plan.objetivo) || '',
     plan: (c.plan && c.plan.nombre) || '', hora: '',
-    hp: c.hp ? {deporte: c.hp.deporte || ''} : null,
+    hp: c.hp ? {deporte: c.hp.deporte || '', actual: c.hp.actual || null} : null,
     sesiones: ponerRotulos((c.sesiones || []).map((s, j) => ({
       id: String(s.id ?? (i+'-'+j)), etiqueta: s.etiqueta || ('Sesión ' + (j+1)),
-      titulo: s.titulo || '', hecha: !!s.hecha, bloques: limpiaBloques(s.bloques)
+      titulo: s.titulo || '', hecha: !!s.hecha, bloques: limpiaBloques(s.bloques),
+      meso: s.meso || 0, semana: s.semana || 0
     })).filter(s => s.bloques.length))
   })).filter(c => c.sesiones.length || c.hp);   // un deportista HP aparece aunque no tenga sesiones
 }
@@ -1013,6 +1017,8 @@ function urlMarcar(){
 async function marcarProyectada(c){
   if (!c || !c.cliente || !c.sesion) return;
   if (c.cliente.tipo === 'kinesiologia' || c.sesion.hecha) return;
+  // Los mesociclos HP son planes molde compartidos por todos los deportistas: no se marcan.
+  if (String(c.sid).startsWith('hps_')) return;
   const url = urlMarcar(); if (!url) return;
   c.sesion.hecha = true; listar();
   try {
@@ -1265,6 +1271,50 @@ async function desmarcarSesiones(cid){
   }
 }
 
+/* ---------- fichas HP: Mesociclo → Semana → Día (v25) ----------
+   Las sesiones de una ficha HP traen `meso` y `semana`. En vez de un botón por
+   cada día de todas las semanas, la fila muestra dos selectores y solo los días
+   de la semana elegida. Al abrir queda elegida la semana que toca hoy
+   (`hp.actual`, la calcula el CMS con la fecha de inicio) o la primera. */
+const hpSel = {};
+const esHp = (ses) => ses.some(s => s.meso);
+function semanaElegida(c, ses){
+  const hay = (m, w) => ses.some(s => s.meso === m && s.semana === w);
+  const sel = hpSel[c.id];
+  if (sel && hay(sel.meso, sel.semana)) return sel;
+  const a = c.hp && c.hp.actual;
+  if (a && hay(a.meso, a.semana)) return {meso: a.meso, semana: a.semana};
+  return {meso: ses[0].meso, semana: ses[0].semana};
+}
+function sesionesVisibles(c, ses){
+  if (!esHp(ses)) return ses;
+  const e = semanaElegida(c, ses);
+  return ses.filter(s => s.meso === e.meso && s.semana === e.semana);
+}
+function selectoresHp(c, ses){
+  if (!esHp(ses)) return '';
+  const e = semanaElegida(c, ses);
+  const mesos = [...new Set(ses.map(s => s.meso))].sort((a,b) => a-b);
+  const semanas = [...new Set(ses.filter(s => s.meso === e.meso).map(s => s.semana))].sort((a,b) => a-b);
+  return `<select class="hpsel" data-hpsel="meso" data-hpcid="${esc(c.id)}" title="Mesociclo">${
+      mesos.map(m => `<option value="${m}"${m===e.meso?' selected':''}>Mesociclo ${m}</option>`).join('')}</select>`
+    + `<select class="hpsel" data-hpsel="semana" data-hpcid="${esc(c.id)}" title="Semana">${
+      semanas.map(w => `<option value="${w}"${w===e.semana?' selected':''}>Semana ${w}</option>`).join('')}</select>`;
+}
+function cambiarSelHp(el){
+  const c = CATALOGO.find(x => x.id === el.dataset.hpcid); if (!c) return;
+  const ses = c.sesiones.filter(s => s.bloques.length);
+  const e = semanaElegida(c, ses), v = Number(el.value);
+  if (el.dataset.hpsel === 'meso'){
+    // Al cambiar de mesociclo se va a su primera semana con ejercicios.
+    const w = ses.filter(s => s.meso === v).map(s => s.semana).sort((a,b) => a-b)[0];
+    hpSel[c.id] = {meso: v, semana: w};
+  } else {
+    hpSel[c.id] = {meso: e.meso, semana: v};
+  }
+  listar();
+}
+
 /* ---------- buscador ---------- */
 function listar(){
   if (ES_TV) return;
@@ -1282,7 +1332,7 @@ function listar(){
       <span class="pill"></span>${c.hora?`<span class="hr">${esc(c.hora)}</span>`:''}
       <span class="nm">${esc(c.nombre)}${c.hp?` <span class="tag hp" title="High Performance${c.hp.deporte?' · '+esc(c.hp.deporte):''}">HP</span>`:''}</span>
       <span class="mt">${c.tipo==='kinesiologia'?'Kinesiología':'Entrenamiento'}${c.plan?' · '+esc(c.plan):''}${c.profesional?' · '+esc(c.profesional):''}</span>
-      <span class="ses">${!ses.length && c.hp ? '<span class="sin">Sin planificación todavía</span>' : ''}${ses.map(s => `<button class="go${s.hecha?' hecha':''}" data-cid="${esc(c.id)}" data-sid="${esc(s.id)}" title="${esc(s.etiqueta||'')}${s.hecha?' · ya realizada':''}">${esc(s.rotulo || s.titulo || s.etiqueta)}</button>`).join('')}</span>
+      <span class="ses">${!ses.length && c.hp ? '<span class="sin">Sin planificación todavía</span>' : ''}${selectoresHp(c, ses)}${sesionesVisibles(c, ses).map(s => `<button class="go${s.hecha?' hecha':''}" data-cid="${esc(c.id)}" data-sid="${esc(s.id)}" title="${esc(s.etiqueta||'')}${s.hecha?' · ya realizada':''}">${esc(s.meso ? (s.titulo || s.rotulo) : (s.rotulo || s.titulo || s.etiqueta))}</button>`).join('')}</span>
       ${c.tipo !== 'kinesiologia' && ses.some(s => s.hecha)
         ? `<button class="undo" data-desmarcar="${esc(c.id)}" title="Dejar sin marcar las sesiones de ${esc(c.nombre)} — el total del período se mantiene">↺</button>`
         : ''}
@@ -1312,7 +1362,10 @@ function abrirEditor(u){
   // Mientras el endpoint no acepte kinesiología responde 409, así que el botón
   // ni se ofrece: se activa poniendo guardarKine en true en config.js, el mismo
   // día en que el CMS quede listo. Así nunca hay un botón que falle.
+  // Un mesociclo HP se edita en el CMS (Planificaciones · Mesociclos): desde acá
+  // se pisaría el molde de todos los deportistas, y el endpoint igual lo rechaza.
   const puedeCMS = CONFIG.endpointGuardar && f.origen === 'cms' &&
+                   !String(f.ses && f.ses.id).startsWith('hps_') &&
                    (f.cli.tipo !== 'kinesiologia' || CONFIG.guardarKine);
   $('#btnGuardarCMS').style.display = puedeCMS ? '' : 'none';
   $('#edNota').style.display = (CONFIG.endpointGuardar && f.origen === 'cms' && !puedeCMS) ? '' : 'none';
@@ -1427,6 +1480,7 @@ if (!ES_TV){
     if (card) return zopen(card.dataset.u);
   });
   $('#q').addEventListener('input', listar);
+  $('#shList').addEventListener('change', e => { const el = e.target.closest('[data-hpsel]'); if (el) cambiarSelHp(el); });
   $('#filtros').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
     filtro = b.dataset.f; [...$('#filtros').children].forEach(x => x.classList.toggle('on', x===b)); listar();

@@ -314,6 +314,19 @@ escribe.
 
 ## Registro de correcciones
 
+**24-10-2026 — v25: en las fichas HP se elige Mesociclo → Semana → Día.**
+Pedido de Gabriel. Desde el CMS (PR #59/#60) cada deportista HP con tipo de
+deporte trae una ficha `hp_<id>` con **todas** las sesiones de los mesociclos de
+su columna, cada una con `meso` y `semana`, y `hp.actual` = la semana que toca
+hoy según la fecha de inicio que Gabriel fija en Planificaciones · Mesociclos.
+La fila del buscador muestra dos selectores (Mesociclo, Semana) y solo los días
+de esa semana; al abrir queda elegida `hp.actual` o la primera. Los ids son
+`hps_`: son planes **molde compartidos** por todos los deportistas, así que
+proyectarlos **no** llama a `/marcar` y el editor no ofrece «Guardar en el CMS»
+(el endpoint igual los rechaza). Una ficha sin `meso` se ve como siempre.
+Verificado en Chromium sin interfaz con un catálogo simulado: selectores, cambio
+de mesociclo/semana, proyección (sin llamada a marcar) y fichas comunes intactas.
+
 **23-10-2026 — v24: los deportistas de High Performance llevan la etiqueta «HP».**
 Pedido de Gabriel: al buscar a alguien tienen que aparecer también los
 deportistas de HP, con una etiqueta junto al nombre. El CMS manda `hp.deporte`
